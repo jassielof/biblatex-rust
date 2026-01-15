@@ -36,22 +36,14 @@ in curly braces). The entries may hold multiple fields. Entries have getter
 methods for each of the possible fields in a Bib(La)TeX file which handle
 possible field aliases, composition and type conversion automatically.
 
-Refer to the [WikiBook section on LaTeX bibliography management](https://en.wikibooks.org/wiki/LaTeX/Bibliography_Management)
-and the [BibLaTeX package manual](http://ctan.ebinger.cc/tex-archive/macros/latex/contrib/biblatex/doc/biblatex.pdf)
-to learn more about the intended meaning of each of the fields.
+Refer to the [WikiBook section on LaTeX bibliography management](https://en.wikibooks.org/wiki/LaTeX/Bibliography_Management) and the [BibLaTeX package manual](http://ctan.ebinger.cc/tex-archive/macros/latex/contrib/biblatex/doc/biblatex.pdf) to learn more about the intended meaning of each of the fields.
 
-The generated documentation more specifically describes the selection and
-behavior of the getters but generally, they follow the convention of being the
-snake-case name of the corresponding field
-(such that the getter for `booktitleaddon` is named `book_title_addon`).
+The generated documentation more specifically describes the selection and behavior of the getters but generally, they follow the convention of being the snake-case name of the corresponding field (such that the getter for `booktitleaddon` is named `book_title_addon`).
 
 ## Limitations
 
-This library attempts to provide fairly comprehensive coverage of the BibLaTeX
-spec with which most of the `.bib` files in circulation can be processed.
+This library attempts to provide fairly comprehensive coverage of the BibLaTeX spec with which most of the `.bib` files in circulation can be processed.
 
 However, the crate currently has some limitations:
 
-- There is no explicit support for entry sets, although it is easy to account
-  for them by manually getting the `entryset` field and calling
-  `parse::<Vec<String>>()` on it
+- There is no explicit support for entry sets, although it is easy to account for them by manually getting the `entryset` field and calling `parse::<Vec<String>>()` on it

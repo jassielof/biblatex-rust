@@ -984,7 +984,9 @@ mod tests {
 
     #[test]
     fn test_parse_incorrect_result() {
-        let contents = fs::read_to_string("tests/incorrect_syntax.bib").unwrap();
+        let contents = fs::read_to_string("tests/incorrect_syntax.bib")
+            .unwrap()
+            .replace("\r\n", "\n");
 
         let bibliography = Bibliography::parse(&contents);
         match bibliography {
@@ -1002,7 +1004,9 @@ mod tests {
 
     #[test]
     fn test_parse_incorrect_types() {
-        let contents = fs::read_to_string("tests/incorrect_data.bib").unwrap();
+        let contents = fs::read_to_string("tests/incorrect_data.bib")
+            .unwrap()
+            .replace("\r\n", "\n");
 
         let bibliography = Bibliography::parse(&contents).unwrap();
         let rashid = bibliography.get("rashid2016").unwrap();

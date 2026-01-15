@@ -361,9 +361,33 @@ impl Entry {
 
     /// Verify if the entry has the appropriate fields for its [`EntryType`].
     pub fn verify(&self) -> Report {
+        let mut missing = self.collect_required();
+        let mut superfluous = self.collect_forbidden();
+
+        let (m, s) = self.check_author_eds();
+        missing.extend(m);
+        superfluous.extend(s);
+
+        let (m, s) = self.check_page_chapter();
+        missing.extend(m);
+        superfluous.extend(s);
+
+        let mut malformed = self.detect_malformed();
+        malformed.extend(self.detect_date_malformed());
+
+        let reqs = self.entry_type.requirements();
+        if reqs.needs_date {
+            if let Err(RetrievalError::Missing(_)) = self.date() {
+                missing.push("year");
+            }
+        }
+
+        Report { missing, superfluous, malformed }
+    }
+
+    fn collect_required(&self) -> Vec<&'static str> {
         let reqs = self.entry_type.requirements();
         let mut missing = vec![];
-        let mut superfluous = vec![];
 
         for field in reqs.required {
             match field {
@@ -406,11 +430,26 @@ impl Entry {
             }
         }
 
+        missing
+    }
+
+    fn collect_forbidden(&self) -> Vec<&'static str> {
+        let reqs = self.entry_type.requirements();
+        let mut superfluous = vec![];
+
         for field in reqs.forbidden {
             if self.get_non_empty(field).is_some() {
                 superfluous.push(field);
             }
         }
+
+        superfluous
+    }
+
+    fn check_author_eds(&self) -> (Vec<&'static str>, Vec<&'static str>) {
+        let reqs = self.entry_type.requirements();
+        let mut missing = vec![];
+        let mut superfluous = vec![];
 
         match reqs.author_eds_field {
             AuthorMode::OneRequired => {
@@ -443,6 +482,14 @@ impl Entry {
             _ => {}
         }
 
+        (missing, superfluous)
+    }
+
+    fn check_page_chapter(&self) -> (Vec<&'static str>, Vec<&'static str>) {
+        let reqs = self.entry_type.requirements();
+        let mut missing = vec![];
+        let mut superfluous = vec![];
+
         match reqs.page_chapter_field {
             PagesChapterMode::OneRequired => {
                 if self.pages().is_err() && self.chapter().is_err() {
@@ -465,6 +512,10 @@ impl Entry {
             _ => {}
         }
 
+        (missing, superfluous)
+    }
+
+    fn detect_malformed(&self) -> Vec<(String, TypeError)> {
         let mut malformed = vec![];
 
         for (key, chunks) in &self.fields {
@@ -493,6 +544,12 @@ impl Entry {
             }
         }
 
+        malformed
+    }
+
+    fn detect_date_malformed(&self) -> Vec<(String, TypeError)> {
+        let mut malformed = vec![];
+
         for (key, err) in [
             ("date", self.date().err()),
             ("urldate", self.url_date().err()),
@@ -504,13 +561,7 @@ impl Entry {
             }
         }
 
-        if reqs.needs_date {
-            if let Err(RetrievalError::Missing(_)) = self.date() {
-                missing.push("year");
-            }
-        }
-
-        Report { missing, superfluous, malformed }
+        malformed
     }
 
     /// Serialize this entry into a BibLaTeX string.

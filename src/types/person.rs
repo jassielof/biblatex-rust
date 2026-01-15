@@ -80,72 +80,8 @@ impl Person {
     /// Constructs new person from a chunk slice if in the
     /// form `<First> <Prefix> <Last>`.
     fn parse_unified(chunks: ChunksRef) -> Self {
-        // Find end of first sequence of capitalized words (denominated by first
-        // lowercase word), start of last capitalized sequence.
-        // If there is no subsequent capitalized word, take last one.
-        // Treat verbatim as capital letters.
-        let mut word_start = true;
-        let mut capital = false;
-        let mut seen_lowercase = false;
-        let mut seen_uppercase = false;
-        let mut seen_uppercase2 = false;
-        let mut cap_new_start = 0;
-        let mut cap_word_end = 0;
-        let mut last_word_start = 0;
-        let mut last_lowercase_start = 0;
-
-        for (index, (c, v)) in chunk_chars(chunks).enumerate() {
-            if c.is_whitespace() && !v {
-                word_start = true;
-                continue;
-            }
-
-            if word_start {
-                last_word_start = index;
-                capital = if v || c.is_uppercase() {
-                    seen_uppercase = true;
-                    if seen_lowercase && last_lowercase_start >= cap_new_start {
-                        seen_uppercase2 = true;
-                        cap_new_start = index;
-                    }
-                    true
-                } else {
-                    last_lowercase_start = index;
-                    seen_lowercase = true;
-                    false
-                };
-            }
-
-            if capital && !seen_lowercase {
-                cap_word_end = index;
-            }
-
-            word_start = false;
-        }
-
-        let mut name = String::new();
-        let mut given_name = String::new();
-        let mut prefix = String::new();
-
-        for (index, (c, _)) in chunk_chars(chunks).enumerate() {
-            if (index <= cap_word_end
-                && seen_lowercase
-                && seen_uppercase
-                && !(index == 0 && c.is_lowercase()))
-                || (index < last_word_start && !seen_lowercase)
-            {
-                given_name.push(c);
-            } else if (index < cap_new_start && cap_new_start > cap_word_end)
-                || (index < last_word_start
-                    && (!seen_uppercase2
-                        || (last_word_start == last_lowercase_start
-                            && index < cap_new_start)))
-            {
-                prefix.push(c);
-            } else {
-                name.push(c);
-            }
-        }
+        let bounds = compute_unified_bounds(chunks);
+        let (name, given_name, prefix) = split_unified_parts(chunks, &bounds);
 
         Self {
             name: name.trim_start().to_string(),
@@ -175,48 +111,8 @@ impl Person {
         }
 
         let given_name = s2.format_verbatim();
-
-        let mut word_start = true;
-        let mut last_lower_case_end: i32 = -1;
-        let mut is_lowercase = false;
-        let mut last_word_start = 0;
-        let mut has_seen_uppercase_words = false;
-
-        for (index, (c, v)) in chunk_chars(s1).enumerate() {
-            if c.is_whitespace() && !v {
-                word_start = true;
-                continue;
-            }
-
-            if word_start {
-                last_word_start = index;
-
-                if c.is_lowercase() || v {
-                    is_lowercase = true;
-                } else {
-                    is_lowercase = false;
-                    has_seen_uppercase_words = true;
-                }
-            }
-
-            if is_lowercase {
-                last_lower_case_end = index as i32;
-            }
-
-            word_start = false;
-        }
-
-        let mut name = String::new();
-        let mut prefix = String::new();
-        for (index, (c, _)) in chunk_chars(s1).enumerate() {
-            if (index as i32 <= last_lower_case_end && has_seen_uppercase_words)
-                || (!has_seen_uppercase_words && index < last_word_start)
-            {
-                prefix.push(c);
-            } else if has_seen_uppercase_words || index >= last_word_start {
-                name.push(c);
-            }
-        }
+        let bounds = compute_single_comma_bounds(s1);
+        let (name, prefix) = split_single_comma_parts(s1, &bounds);
 
         Self {
             name: name.trim_start().to_string(),
@@ -238,6 +134,93 @@ impl Person {
         p.suffix = s2.format_verbatim();
         p
     }
+}
+
+/// Helper struct for parse_unified analysis.
+struct UnifBounds {
+    cap_new_start: usize,
+    cap_word_end: usize,
+    last_word_start: usize,
+    seen_lowercase: bool,
+    seen_uppercase: bool,
+    seen_uppercase2: bool,
+}
+
+fn compute_unified_bounds(chunks: ChunksRef) -> UnifBounds {
+    let mut word_start = true;
+    let mut capital = false;
+    let mut seen_lowercase = false;
+    let mut seen_uppercase = false;
+    let mut seen_uppercase2 = false;
+    let mut cap_new_start = 0;
+    let mut cap_word_end = 0;
+    let mut last_word_start = 0;
+    let mut last_lowercase_start = 0;
+
+    for (index, (c, v)) in chunk_chars(chunks).enumerate() {
+        if c.is_whitespace() && !v {
+            word_start = true;
+            continue;
+        }
+
+        if word_start {
+            last_word_start = index;
+            if v || c.is_uppercase() {
+                seen_uppercase = true;
+                if seen_lowercase && last_lowercase_start >= cap_new_start {
+                    seen_uppercase2 = true;
+                    cap_new_start = index;
+                }
+                capital = true;
+            } else {
+                last_lowercase_start = index;
+                seen_lowercase = true;
+                capital = false;
+            }
+        }
+
+        if capital && !seen_lowercase {
+            cap_word_end = index;
+        }
+
+        word_start = false;
+    }
+
+    UnifBounds {
+        cap_new_start,
+        cap_word_end,
+        last_word_start,
+        seen_lowercase,
+        seen_uppercase,
+        seen_uppercase2,
+    }
+}
+
+fn split_unified_parts(chunks: ChunksRef, b: &UnifBounds) -> (String, String, String) {
+    let mut name = String::new();
+    let mut given_name = String::new();
+    let mut prefix = String::new();
+
+    for (index, (c, _)) in chunk_chars(chunks).enumerate() {
+        if (index <= b.cap_word_end
+            && b.seen_lowercase
+            && b.seen_uppercase
+            && !(index == 0 && c.is_lowercase()))
+            || (index < b.last_word_start && !b.seen_lowercase)
+        {
+            given_name.push(c);
+        } else if (index < b.cap_new_start && b.cap_new_start > b.cap_word_end)
+            || (index < b.last_word_start
+                && (!b.seen_uppercase2
+                    || (b.last_word_start == 0 && index < b.cap_new_start)))
+        {
+            prefix.push(c);
+        } else {
+            name.push(c);
+        }
+    }
+
+    (name, given_name, prefix)
 }
 
 impl Type for Vec<Person> {
@@ -280,6 +263,67 @@ impl Type for Vec<Person> {
             .collect::<Vec<Chunks>>()
             .to_chunks()
     }
+}
+/// Analysis result for parse_single_comma.
+struct SingleCommaBounds {
+    last_lower_case_end: i32,
+    last_word_start: usize,
+    has_seen_uppercase_words: bool,
+}
+
+fn compute_single_comma_bounds(s1: ChunksRef) -> SingleCommaBounds {
+    let mut word_start = true;
+    let mut last_lower_case_end: i32 = -1;
+    let mut is_lowercase = false;
+    let mut last_word_start = 0;
+    let mut has_seen_uppercase_words = false;
+
+    for (index, (c, v)) in chunk_chars(s1).enumerate() {
+        if c.is_whitespace() && !v {
+            word_start = true;
+            continue;
+        }
+
+        if word_start {
+            last_word_start = index;
+
+            if c.is_lowercase() || v {
+                is_lowercase = true;
+            } else {
+                is_lowercase = false;
+                has_seen_uppercase_words = true;
+            }
+        }
+
+        if is_lowercase {
+            last_lower_case_end = index as i32;
+        }
+
+        word_start = false;
+    }
+
+    SingleCommaBounds {
+        last_lower_case_end,
+        last_word_start,
+        has_seen_uppercase_words,
+    }
+}
+
+fn split_single_comma_parts(s1: ChunksRef, b: &SingleCommaBounds) -> (String, String) {
+    let mut name = String::new();
+    let mut prefix = String::new();
+
+    for (index, (c, _)) in chunk_chars(s1).enumerate() {
+        if (index as i32 <= b.last_lower_case_end && b.has_seen_uppercase_words)
+            || (!b.has_seen_uppercase_words && index < b.last_word_start)
+        {
+            prefix.push(c);
+        } else if b.has_seen_uppercase_words || index >= b.last_word_start {
+            name.push(c);
+        }
+    }
+
+    (name, prefix)
 }
 
 impl Display for Person {

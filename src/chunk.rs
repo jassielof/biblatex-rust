@@ -291,6 +291,93 @@ pub(crate) fn split_token_lists(vals: ChunksRef, keyword: &str) -> Vec<Chunks> {
     out
 }
 
+/// Trim the beginning and the end of the parsed field
+fn sanitize_latest(latest: &mut Vec<Spanned<Chunk>>) {
+    if latest.is_empty() {
+        return;
+    }
+
+    let mut diff = 0;
+    if let Chunk::Normal(s) = &mut latest[0].v {
+        diff = s.len() - s.trim_start().len();
+        s.drain(0..diff);
+    }
+
+    if !latest[0].is_detached() {
+        latest[0].span.start += diff;
+    }
+
+    let mut new_len = 0;
+    let end = latest.len() - 1;
+
+    if let Chunk::Normal(s) = &mut latest[end].v {
+        new_len = s.trim_end().len();
+        s.truncate(new_len);
+    }
+
+    if !latest[end].is_detached() {
+        latest[end].span.end = latest[end].span.start + new_len;
+    }
+}
+
+/// Process a single normal chunk: split on keyword and push resulting pieces
+/// into `latest` and `out` as appropriate.
+fn process_normal_chunk(
+    chunk_idx: usize,
+    chunk: &Spanned<Chunk>,
+    vals_len: usize,
+    keyword: &str,
+    latest: &mut Vec<Spanned<Chunk>>,
+    out: &mut Vec<Chunks>,
+) {
+    let mut start = chunk.span.start;
+
+    // If the first chunk is normal -> leading keyword
+    let s = if chunk_idx == 0 {
+        let new_s = chunk.v.get().trim_start();
+        if !chunk.is_detached() {
+            // Offset the span start by the number of characters trimmed
+            start = chunk.span.start + chunk.v.get().len() - new_s.len();
+        }
+        new_s
+    } else {
+        chunk.v.get()
+    };
+
+    // If the last chunk is normal -> trailing keyword
+    let s = if chunk_idx == vals_len - 1 { s.trim_end() } else { s };
+
+    let mut splits = s.split(keyword);
+    // guaranteed to have a value
+    let mut prev = splits.next().unwrap();
+
+    let mut cur = String::new();
+
+    for split in splits {
+        if prev.ends_with(char::is_whitespace) && split.starts_with(char::is_whitespace) {
+            cur += prev;
+            let end = if chunk.is_detached() { usize::MAX } else { start + cur.len() };
+            latest
+                .push(Spanned::new(Chunk::Normal(std::mem::take(&mut cur)), start..end));
+
+            sanitize_latest(latest);
+            out.push(std::mem::take(latest));
+
+            start = end;
+            prev = split;
+            continue;
+        }
+
+        cur += prev;
+        cur += keyword;
+        prev = split;
+    }
+
+    cur += prev;
+    let end = if chunk.is_detached() { usize::MAX } else { start + cur.len() };
+    latest.push(Spanned::new(Chunk::Normal(std::mem::take(&mut cur)), start..end));
+}
+
 /// Split the token list based on a keyword surrounded by whitespace
 ///
 /// For Normal Chunks,
@@ -304,86 +391,16 @@ pub(crate) fn split_token_lists_with_kw(vals: ChunksRef, keyword: &str) -> Vec<C
     let mut out = vec![];
     let mut latest = vec![];
 
-    // Trim the beginning and the end of the parsed field
-    let sanitize_latest = |latest: &mut Vec<Spanned<Chunk>>| {
-        if latest.is_empty() {
-            return;
-        }
-
-        let mut diff = 0;
-        if let Chunk::Normal(s) = &mut latest[0].v {
-            diff = s.len() - s.trim_start().len();
-            s.drain(0..diff);
-        }
-        if !latest[0].is_detached() {
-            latest[0].span.start += diff;
-        }
-
-        let mut new_len = 0;
-        let end = latest.len() - 1;
-        if let Chunk::Normal(s) = &mut latest[end].v {
-            new_len = s.trim_end().len();
-            s.truncate(new_len);
-        }
-        if !latest[end].is_detached() {
-            latest[end].span.end = latest[end].span.start + new_len;
-        }
-    };
-
     for (chunk_idx, chunk) in vals.iter().enumerate() {
-        if let Chunk::Normal(s) = &chunk.v {
-            let mut start = chunk.span.start;
-
-            // If the first chunk is normal -> leading keyword
-            let s = if chunk_idx == 0 {
-                let new_s = s.trim_start();
-                if !chunk.is_detached() {
-                    // Offset the span start by the number of characters trimmed
-                    start = chunk.span.start + s.len() - new_s.len();
-                }
-                new_s
-            } else {
-                s
-            };
-
-            // If the last chunk is normal -> trailing keyword
-            let s = if chunk_idx == vals.len() - 1 { s.trim_end() } else { s };
-
-            let mut splits = s.split(keyword);
-            // guaranteed to have a value
-            let mut prev = splits.next().unwrap();
-
-            let mut cur = String::new();
-
-            for split in splits {
-                if prev.ends_with(char::is_whitespace)
-                    && split.starts_with(char::is_whitespace)
-                {
-                    cur += prev;
-                    let end =
-                        if chunk.is_detached() { usize::MAX } else { start + cur.len() };
-                    latest.push(Spanned::new(
-                        Chunk::Normal(std::mem::take(&mut cur)),
-                        start..end,
-                    ));
-
-                    sanitize_latest(&mut latest);
-                    out.push(std::mem::take(&mut latest));
-
-                    start = end;
-                    prev = split;
-                    continue;
-                }
-
-                cur += prev;
-                cur += keyword;
-                prev = split;
-            }
-
-            cur += prev;
-            let end = if chunk.is_detached() { usize::MAX } else { start + cur.len() };
-            latest
-                .push(Spanned::new(Chunk::Normal(std::mem::take(&mut cur)), start..end));
+        if let Chunk::Normal(_) = &chunk.v {
+            process_normal_chunk(
+                chunk_idx,
+                chunk,
+                vals.len(),
+                keyword,
+                &mut latest,
+                &mut out,
+            );
         } else {
             latest.push(chunk.clone());
         }

@@ -1,24 +1,4 @@
-/*!
-A crate for parsing Bib(La)TeX files.
-
-The main API entrypoint is the [`Bibliography`] struct.
-
-# Example
-
-Finding out the author of a work.
-```
-# use biblatex::Bibliography;
-# fn main() -> std::io::Result<()> {
-let src = "@book{tolkien1937, author = {J. R. R. Tolkien}}";
-let bibliography = Bibliography::parse(src).unwrap();
-let entry = bibliography.get("tolkien1937").unwrap();
-let author = entry.author().unwrap();
-assert_eq!(author[0].name, "Tolkien");
-# Ok(())
-# }
-```
-*/
-
+#![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 
 mod chunk;

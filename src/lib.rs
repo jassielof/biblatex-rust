@@ -938,8 +938,9 @@ impl Entry {
 
     /// Get the `author` field as a name list, which may include the "and others" marker.
     ///
-    /// This is similar to [`Entry::author`] but returns [`NameListEntry`] items that can
-    /// represent either a person or the special "and others" truncation marker.
+    /// Unlike the standard `author` field accessor which returns `Vec<Person>`, this method
+    /// returns [`NameListEntry`] items that can represent either a person or the special
+    /// "and others" truncation marker used in BibLaTeX.
     pub fn author_list(&self) -> Result<Vec<NameListEntry>, RetrievalError> {
         self.get("author")
             .ok_or_else(|| RetrievalError::Missing("author".to_string()))?
@@ -949,8 +950,8 @@ impl Entry {
 
     /// Get the `editor` field as a name list, which may include the "and others" marker.
     ///
-    /// This is similar to [`Entry::editor`] but returns [`NameListEntry`] items that can
-    /// represent either a person or the special "and others" truncation marker.
+    /// Returns [`NameListEntry`] items that can represent either a person or the
+    /// special "and others" truncation marker.
     pub fn editor_list(&self) -> Result<Vec<NameListEntry>, RetrievalError> {
         self.get("editor")
             .ok_or_else(|| RetrievalError::Missing("editor".to_string()))?
@@ -960,8 +961,9 @@ impl Entry {
 
     /// Get the `editor` and `editora` through `editorc` fields as name lists with "and others" support.
     ///
-    /// This is similar to [`Entry::editors`] but returns [`NameListEntry`] items that can
-    /// represent either a person or the special "and others" truncation marker.
+    /// Unlike the standard `editors` method which returns `Vec<(Vec<Person>, EditorType)>`, this method
+    /// returns [`NameListEntry`] items that can represent either a person or the special
+    /// "and others" truncation marker used in BibLaTeX.
     pub fn editor_lists(
         &self,
     ) -> Result<Vec<(Vec<NameListEntry>, EditorType)>, TypeError> {

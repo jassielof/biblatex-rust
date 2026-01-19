@@ -7,6 +7,7 @@ use crate::raw::{
 };
 use crate::types::get_month_for_abbr;
 use crate::{ChunksExt, Span, Spanned};
+use std::collections::BTreeMap;
 use unscanny::Scanner;
 
 /// Fully parse a field, resolving abbreviations and LaTeX commands.
@@ -15,15 +16,26 @@ pub fn parse_field(
     field: &Field,
     abbreviations: &Vec<Pair<'_>>,
 ) -> Result<Chunks, ParseError> {
+    parse_field_with_external_abbrevs(key, field, abbreviations, &BTreeMap::new())
+}
+
+/// Fully parse a field, resolving abbreviations (including external ones) and LaTeX commands.
+pub fn parse_field_with_external_abbrevs(
+    key: &str,
+    field: &Field,
+    abbreviations: &Vec<Pair<'_>>,
+    external_abbrevs: &BTreeMap<String, String>,
+) -> Result<Chunks, ParseError> {
     let mut chunks = vec![];
     for e in field {
         match e.v {
             RawChunk::Abbreviation(s) => {
-                chunks.extend(resolve_abbreviation(
+                chunks.extend(resolve_abbreviation_with_external(
                     key,
                     s,
                     e.span.clone(),
                     abbreviations,
+                    external_abbrevs,
                 )?);
             }
             RawChunk::Normal(s) => {
@@ -282,22 +294,36 @@ fn resolve_abbreviation(
     span: Span,
     map: &Vec<Pair<'_>>,
 ) -> Result<Chunks, ParseError> {
-    let fields =
-        map.iter()
-            .find(|e| e.key.v == abbr)
-            .map(|e| &e.value.v)
-            .ok_or(ParseError::new(
-                span.clone(),
-                ParseErrorKind::UnknownAbbreviation(abbr.into()),
-            ));
+    resolve_abbreviation_with_external(key, abbr, span, map, &BTreeMap::new())
+}
 
-    if fields.is_err() {
-        if let Some(month) = get_month_for_abbr(abbr) {
-            return Ok(vec![Spanned::new(Chunk::Normal(month.0.to_string()), span)]);
-        }
+/// Resolves `Chunk::Abbreviation` items, checking external abbreviations if not found in file.
+fn resolve_abbreviation_with_external(
+    key: &str,
+    abbr: &str,
+    span: Span,
+    map: &Vec<Pair<'_>>,
+    external_abbrevs: &BTreeMap<String, String>,
+) -> Result<Chunks, ParseError> {
+    // First, try to find in the file-defined abbreviations
+    let fields = map.iter().find(|e| e.key.v == abbr).map(|e| &e.value.v);
+
+    if let Some(field) = fields {
+        return parse_field_with_external_abbrevs(key, field, map, external_abbrevs);
     }
 
-    parse_field(key, fields?, map)
+    // If not found, check external abbreviations
+    if let Some(value) = external_abbrevs.get(abbr) {
+        return Ok(vec![Spanned::new(Chunk::Normal(value.clone()), span)]);
+    }
+
+    // Finally, check if it's a month abbreviation
+    if let Some(month) = get_month_for_abbr(abbr) {
+        return Ok(vec![Spanned::new(Chunk::Normal(month.0.to_string()), span)]);
+    }
+
+    // If still not found, return error
+    Err(ParseError::new(span, ParseErrorKind::UnknownAbbreviation(abbr.into())))
 }
 
 /// Best-effort evaluation of LaTeX commands with a focus on diacritics.

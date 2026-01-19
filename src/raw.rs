@@ -396,68 +396,95 @@ impl<'s> BiblatexParser<'s> {
             }
 
             // BibTeX compatibility: skip fields starting with @
-            // These are used as a way to "comment out" fields in BibTeX
-            if self.s.peek() == Some('@') {
-                // Skip the @ sign
-                self.s.eat();
-                // Skip to the next comma or closing brace
-                while let Some(c) = self.s.peek() {
-                    if c == ',' || c == '}' {
-                        break;
-                    }
-                    // Handle braced values within the commented field
-                    if c == '{' {
-                        self.s.eat();
-                        let mut depth = 1;
-                        while depth > 0 && !self.s.done() {
-                            match self.s.eat() {
-                                Some('{') => depth += 1,
-                                Some('}') => depth -= 1,
-                                _ => {}
-                            }
-                        }
-                    } else {
-                        self.s.eat();
-                    }
-                }
-                // If we're at a comma, consume it
-                if self.s.peek() == Some(',') {
-                    self.comma()?;
-                }
+            if self.should_skip_at_field()? {
                 continue;
             }
 
             let (key, value) = self.field()?;
-
             self.s.eat_whitespace();
-
             fields.push(Pair::new(key, value));
 
-            match self.s.peek() {
-                Some(',') => {
-                    self.comma()?;
-
-                    // Handle inline comments after comma at end of field
-                    //     @article{foo,
-                    //         title={bar},  % A comment
-                    //         year={2025}
-                    //     }
-                    self.s.eat_whitespace();
-                    self.comment()?;
-                }
-                Some('}') => {
-                    return Ok(fields);
-                }
-                _ => {
-                    return Err(ParseError::new(
-                        self.here(),
-                        ParseErrorKind::Expected(Token::Comma),
-                    ));
-                }
+            self.handle_field_terminator()?;
+            if self.s.peek() == Some('}') {
+                return Ok(fields);
             }
         }
 
         Err(ParseError::new(self.here(), ParseErrorKind::UnexpectedEof))
+    }
+
+    /// Check if we should skip an @ field (BibTeX comment compatibility).
+    /// These are used as a way to "comment out" fields in BibTeX.
+    /// Returns true if an @ field was skipped.
+    fn should_skip_at_field(&mut self) -> Result<bool, ParseError> {
+        if self.s.peek() != Some('@') {
+            return Ok(false);
+        }
+
+        // Skip the @ sign
+        self.s.eat();
+
+        // Skip to the next comma or closing brace
+        self.skip_until_field_delimiter();
+
+        // If we're at a comma, consume it
+        if self.s.peek() == Some(',') {
+            self.comma()?;
+        }
+
+        Ok(true)
+    }
+
+    /// Skip characters until we reach a field delimiter (comma or closing brace).
+    /// Handles braced values within the skipped content.
+    fn skip_until_field_delimiter(&mut self) {
+        while let Some(c) = self.s.peek() {
+            if c == ',' || c == '}' {
+                break;
+            }
+
+            if c == '{' {
+                self.skip_braced_content();
+            } else {
+                self.s.eat();
+            }
+        }
+    }
+
+    /// Skip over braced content, handling nested braces.
+    fn skip_braced_content(&mut self) {
+        self.s.eat(); // consume opening brace
+        let mut depth = 1;
+
+        while depth > 0 && !self.s.done() {
+            match self.s.eat() {
+                Some('{') => depth += 1,
+                Some('}') => depth -= 1,
+                _ => {}
+            }
+        }
+    }
+
+    /// Handle the terminator after a field (comma or closing brace).
+    fn handle_field_terminator(&mut self) -> Result<(), ParseError> {
+        match self.s.peek() {
+            Some(',') => {
+                self.comma()?;
+                // Handle inline comments after comma at end of field
+                //     @article{foo,
+                //         title={bar},  % A comment
+                //         year={2025}
+                //     }
+                self.s.eat_whitespace();
+                self.comment()?;
+                Ok(())
+            }
+            Some('}') => Ok(()),
+            _ => Err(ParseError::new(
+                self.here(),
+                ParseErrorKind::Expected(Token::Comma),
+            )),
+        }
     }
 
     /// Eat an entry key.

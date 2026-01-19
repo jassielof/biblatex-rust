@@ -2,6 +2,68 @@ use biblatex::{Bibliography, ChunksExt, EntryType, PermissiveType, Person};
 use std::fs;
 
 #[test]
+fn test_string_multi_syntax() {
+    // Test for issue #32 - alternative @string syntax with comma-separated definitions
+    let contents = fs::read_to_string("tests/fixtures/valid/string_multi_syntax.bib").unwrap();
+    let bibliography = Bibliography::parse(&contents).unwrap();
+    println!("Bibliography: {:#?}", bibliography);
+    assert_eq!(bibliography.len(), 2);
+
+    let article = bibliography.get("test1").unwrap();
+    assert_eq!(article.journal().unwrap().format_sentence(), "J.~amer. math. soc.");
+
+    let book = bibliography.get("test2").unwrap();
+    assert_eq!(book.publisher().unwrap()[0].format_sentence(), "Cambridge university press");
+}
+
+#[test]
+fn test_external_abbreviations() {
+    // Test for issue #63 - external abbreviations from style files
+    let contents = fs::read_to_string("tests/fixtures/valid/external_abbreviations.bib").unwrap();
+
+    // Define external abbreviations (e.g., from archaeologie.bst style file)
+    let external_abbrevs = vec![
+        ("AEspA", "Archäologischer Anzeiger"),
+        ("AJA", "American Journal of Archaeology"),
+    ];
+
+    let bibliography = Bibliography::parse_with_abbreviations(&contents, &external_abbrevs).unwrap();
+    assert_eq!(bibliography.len(), 2);
+
+    let article1 = bibliography.get("test1").unwrap();
+    assert_eq!(article1.journal().unwrap().format_sentence(), "Archäologischer anzeiger");
+
+    let article2 = bibliography.get("test2").unwrap();
+    assert_eq!(article2.journal().unwrap().format_sentence(), "American journal of archaeology");
+}
+
+#[test]
+fn test_file_abbrevs_override_external() {
+    // Test that abbreviations in the .bib file take precedence over external ones
+    let src = r#"
+@string{AJA = {My Custom Journal}}
+
+@article{test,
+  author       = {Smith, John},
+  title        = {Test Article},
+  journaltitle = AJA,
+  date         = 2024
+}
+"#;
+
+    let external_abbrevs = vec![
+        ("AJA", "American Journal of Archaeology"),
+    ];
+
+    let bibliography = Bibliography::parse_with_abbreviations(src, &external_abbrevs).unwrap();
+    assert_eq!(bibliography.len(), 1);
+
+    let article = bibliography.get("test").unwrap();
+    // File-defined abbreviation should override external
+    assert_eq!(article.journal().unwrap().format_sentence(), "My custom journal");
+}
+
+#[test]
 fn test_gral_bib() {
     let contents = fs::read_to_string("tests/fixtures/valid/gral.bib").unwrap();
     let bibliography = Bibliography::parse(&contents).unwrap();

@@ -1,0 +1,25 @@
+% Test file for alternative @string syntax (issue #32)
+% Multiple abbreviations in a single @string block
+
+@string{
+  anch-ie = {Angew.~Chem. Int.~Ed.},
+  cup     = {Cambridge University Press},
+  dtv     = {Deutscher Taschenbuch-Verlag},
+  hup     = {Harvard University Press},
+  jams    = {J.~Amer. Math. Soc.}
+}
+
+@article{test1,
+  author       = {Smith, John},
+  title        = {A Test Article},
+  journaltitle = jams,
+  date         = 2024,
+  pages        = {1-10}
+}
+
+@book{test2,
+  author    = {Doe, Jane},
+  title     = {A Test Book},
+  publisher = cup,
+  date      = 2023
+}

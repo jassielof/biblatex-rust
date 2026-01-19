@@ -20,6 +20,47 @@ assert_eq!(author[0].name, "Tolkien");
 
 This library operates on a `Bibliography` struct, which is a collection of _entries_ (the items in your `.bib` file that start with an `@` and are wrapped in curly braces). The entries may hold multiple fields. Entries have getter methods for each of the possible fields in a Bib(La)TeX file which handle possible field aliases, composition and type conversion automatically.
 
+### External Abbreviations
+
+Many BibLaTeX styles define `@string` abbreviations in separate style files (`.bst`). To use these external abbreviations, you can provide them when parsing:
+
+```rust
+use biblatex::Bibliography;
+
+// Define external abbreviations from a style file
+let external_abbrevs = vec![
+    ("AEspA", "Archäologischer Anzeiger"),
+    ("AJA", "American Journal of Archaeology"),
+];
+
+let src = r#"
+@article{test,
+  author = {Smith, John},
+  title = {Archaeological Study},
+  journaltitle = AEspA,
+  date = 2024
+}
+"#;
+
+let bibliography = Bibliography::parse_with_abbreviations(src, &external_abbrevs).unwrap();
+```
+
+Abbreviations defined in the `.bib` file itself will take precedence over external abbreviations.
+
+### Alternative `@string` Syntax
+
+This library supports an alternative syntax for `@string` definitions where multiple abbreviations can be defined in a single block (comma-separated):
+
+```bibtex
+@string{
+  cup = {Cambridge University Press},
+  oup = {Oxford University Press},
+  mit = {MIT Press}
+}
+```
+
+This is in addition to the standard BibTeX syntax where each abbreviation requires its own `@string` entry.
+
 ## Compliance and specification
 
 This library is tested against BibLaTeX version 3.12 (2025-07-10) on CTAN.

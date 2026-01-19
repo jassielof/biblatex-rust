@@ -102,10 +102,66 @@ impl Bibliography {
         Self::from_raw(RawBibliography::parse(src)?)
     }
 
+    /// Parse a bibliography from a source string with external abbreviations.
+    ///
+    /// This method allows you to provide abbreviations from external sources
+    /// (e.g., BibLaTeX style files) that should be available during parsing.
+    /// External abbreviations are defined as key-value pairs where both are strings.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use biblatex::Bibliography;
+    ///
+    /// let external_abbrevs = vec![
+    ///     ("AEspA", "Archäologischer Anzeiger"),
+    ///     ("AJA", "American Journal of Archaeology"),
+    /// ];
+    ///
+    /// let src = r#"
+    /// @article{test,
+    ///   author = {Smith, John},
+    ///   title = {Test Article},
+    ///   journaltitle = AEspA,
+    ///   date = 2024
+    /// }
+    /// "#;
+    ///
+    /// let bib = Bibliography::parse_with_abbreviations(src, &external_abbrevs).unwrap();
+    /// ```
+    pub fn parse_with_abbreviations(
+        src: &str,
+        external_abbreviations: &[(&str, &str)],
+    ) -> Result<Self, ParseError> {
+        Self::from_raw_with_abbreviations(
+            RawBibliography::parse(src)?,
+            external_abbreviations,
+        )
+    }
+
     /// Construct a bibliography from a raw bibliography, with the `xdata` and
     /// `crossref` links resolved.
     pub fn from_raw(raw: RawBibliography) -> Result<Self, ParseError> {
+        Self::from_raw_with_abbreviations(raw, &[])
+    }
+
+    /// Construct a bibliography from a raw bibliography with external abbreviations,
+    /// resolving `xdata` and `crossref` links.
+    ///
+    /// External abbreviations are merged with abbreviations defined in the `.bib` file,
+    /// with file-defined abbreviations taking precedence over external ones.
+    pub fn from_raw_with_abbreviations(
+        raw: RawBibliography,
+        external_abbreviations: &[(&str, &str)],
+    ) -> Result<Self, ParseError> {
         let mut res = Self::new();
+
+        // Create external abbreviation map for quick lookup
+        let abbr_map: BTreeMap<String, String> = external_abbreviations
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+
         let abbr = &raw.abbreviations;
 
         for entry in raw.entries {
@@ -120,8 +176,12 @@ impl Bibliography {
             let mut fields: BTreeMap<String, Vec<Spanned<Chunk>>> = BTreeMap::new();
             for spanned_field in entry.v.fields.into_iter() {
                 let field_key = spanned_field.key.v.to_string().to_ascii_lowercase();
-                let parsed =
-                    resolve::parse_field(&field_key, &spanned_field.value.v, abbr)?;
+                let parsed = resolve::parse_field_with_external_abbrevs(
+                    &field_key,
+                    &spanned_field.value.v,
+                    abbr,
+                    &abbr_map,
+                )?;
                 fields.insert(field_key, parsed);
             }
             res.insert(Entry {

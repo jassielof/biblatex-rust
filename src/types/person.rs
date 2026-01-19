@@ -330,7 +330,9 @@ impl Type for Vec<NameListEntry> {
                     let prefix = if let Some(c) = p.prefix.chars().next() {
                         if c.is_uppercase() {
                             (
-                                Some(Spanned::detached(Chunk::Verbatim(p.prefix.clone()))),
+                                Some(Spanned::detached(Chunk::Verbatim(
+                                    p.prefix.clone(),
+                                ))),
                                 " ".to_string(),
                             )
                         } else {

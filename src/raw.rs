@@ -480,10 +480,9 @@ impl<'s> BiblatexParser<'s> {
                 Ok(())
             }
             Some('}') => Ok(()),
-            _ => Err(ParseError::new(
-                self.here(),
-                ParseErrorKind::Expected(Token::Comma),
-            )),
+            _ => {
+                Err(ParseError::new(self.here(), ParseErrorKind::Expected(Token::Comma)))
+            }
         }
     }
 

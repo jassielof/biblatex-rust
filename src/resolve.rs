@@ -546,7 +546,8 @@ mod tests {
             z(RawChunk::Normal("last")),
         ];
 
-        let res = parse_field_with_external_abbrevs("", &field, &map, &BTreeMap::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &map, &BTreeMap::new())
+            .unwrap();
         assert_eq!(res[0].v, N("ABCgood "));
         assert_eq!(res[1].v, V("TIMES"));
         assert_eq!(res[2].v, N("hellopersonlast"));
@@ -559,7 +560,9 @@ mod tests {
             "\\\"{A}ther und {\"\\LaTeX \"} {\\relax for you\\}}",
         ))];
 
-        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
+        let res =
+            parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new())
+                .unwrap();
         assert_eq!(res[0].v, N("Äther und "));
         assert_eq!(res[1].v, V("\"LaTeX\""));
         assert_eq!(res[2].v, N(" "));
@@ -568,17 +571,23 @@ mod tests {
 
         let field = vec![z(RawChunk::Normal("M\\\"etal S\\= ound"))];
 
-        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
+        let res =
+            parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new())
+                .unwrap();
         assert_eq!(res[0].v, N("Mëtal Sōund"));
 
         let field = vec![z(RawChunk::Normal(r"L\^{e} D\~{u}ng Tr\'{a}ng"))];
 
-        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
+        let res =
+            parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new())
+                .unwrap();
         assert_eq!(res[0].v, N("Lê Dũng Tráng"));
 
         let field = vec![z(RawChunk::Normal(r"\b b \c c \d a \H o \k a \r a \u a \v a"))];
 
-        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
+        let res =
+            parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new())
+                .unwrap();
         assert_eq!(res[0].v, N("b̲ ç ạ ő ą å ă ǎ"));
     }
 
@@ -588,7 +597,9 @@ mod tests {
             "The $11^{th}$ International Conference on How To Make \\$\\$",
         ))];
 
-        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
+        let res =
+            parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new())
+                .unwrap();
         assert_eq!(res[0].v, N("The "));
         assert_eq!(res[1].v, M("11^{th}"));
         assert_eq!(res[2].v, N(" International Conference on How To Make $$"));
@@ -600,7 +611,9 @@ mod tests {
         let field =
             vec![z(RawChunk::Normal("Bose\\textendash{}Einstein uses Win\\-dows"))];
 
-        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
+        let res =
+            parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new())
+                .unwrap();
         assert_eq!(res[0].v, N("Bose–Einstein uses Windows"));
     }
 
@@ -609,7 +622,9 @@ mod tests {
         let field =
             vec![z(RawChunk::Normal("- Knitting A--Z --- A practical guide -----"))];
 
-        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
+        let res =
+            parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new())
+                .unwrap();
         assert_eq!(res[0].v, N("- Knitting A–Z — A practical guide —–"));
     }
 }

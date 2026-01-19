@@ -4,11 +4,53 @@ use std::fmt::{self, Display, Formatter};
 use crate::{chunk::*, Spanned};
 use crate::{Type, TypeError};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+/// An entry in a name list, which can be either a person or the special
+/// "and others" marker used to truncate name lists.
+///
+/// According to the BibLaTeX specification, name lists may be truncated in the
+/// bib file with the keyword 'and others'.
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum NameListEntry {
+    /// A regular person entry.
+    Person(Person),
+    /// The "and others" marker indicating the list is truncated.
+    AndOthers,
+}
+
+impl NameListEntry {
+    /// Returns `true` if this is an `AndOthers` entry.
+    pub fn is_and_others(&self) -> bool {
+        matches!(self, NameListEntry::AndOthers)
+    }
+
+    /// Returns the person if this is a `Person` entry, or `None` if it's `AndOthers`.
+    pub fn as_person(&self) -> Option<&Person> {
+        match self {
+            NameListEntry::Person(p) => Some(p),
+            NameListEntry::AndOthers => None,
+        }
+    }
+
+    /// Consumes the entry and returns the person if this is a `Person` entry,
+    /// or `None` if it's `AndOthers`.
+    pub fn into_person(self) -> Option<Person> {
+        match self {
+            NameListEntry::Person(p) => Some(p),
+            NameListEntry::AndOthers => None,
+        }
+    }
+}
+
 /// An author, editor, or some other person affiliated with a cited work.
 ///
 /// When parsed through [`Person::parse`], the whitespace is trimmed from the
 /// fields.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Person {
     /// The surname / family name / last name.
     pub name: String,
@@ -264,6 +306,63 @@ impl Type for Vec<Person> {
             .to_chunks()
     }
 }
+
+impl Type for Vec<NameListEntry> {
+    fn from_chunks(chunks: ChunksRef) -> Result<Self, TypeError> {
+        Ok(split_token_lists_with_kw(chunks, "and")
+            .into_iter()
+            .map(|subchunks| {
+                // Check if this entry is "others" (the "and others" marker)
+                let text = subchunks.format_verbatim().trim().to_lowercase();
+                if text == "others" {
+                    NameListEntry::AndOthers
+                } else {
+                    NameListEntry::Person(Person::parse(&subchunks))
+                }
+            })
+            .collect())
+    }
+
+    fn to_chunks(&self) -> Chunks {
+        self.iter()
+            .map(|entry| match entry {
+                NameListEntry::Person(p) => {
+                    let prefix = if let Some(c) = p.prefix.chars().next() {
+                        if c.is_uppercase() {
+                            (
+                                Some(Spanned::detached(Chunk::Verbatim(p.prefix.clone()))),
+                                " ".to_string(),
+                            )
+                        } else {
+                            (None, format!("{} ", p.prefix))
+                        }
+                    } else {
+                        (None, String::new())
+                    };
+
+                    let name_str = if !p.suffix.is_empty() {
+                        format!("{}{}, {}, {}", prefix.1, p.name, p.suffix, p.given_name)
+                    } else {
+                        format!("{}{}, {}", prefix.1, p.name, p.given_name)
+                    };
+
+                    let mut res = vec![Spanned::detached(Chunk::Normal(name_str))];
+                    if let Some(pre_chunk) = prefix.0 {
+                        res.insert(0, pre_chunk);
+                    }
+
+                    res
+                }
+                NameListEntry::AndOthers => {
+                    // Serialize "and others" as "others"
+                    vec![Spanned::detached(Chunk::Normal("others".to_string()))]
+                }
+            })
+            .collect::<Vec<Chunks>>()
+            .to_chunks()
+    }
+}
+
 /// Analysis result for parse_single_comma.
 struct SingleCommaBounds {
     last_lower_case_end: i32,

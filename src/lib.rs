@@ -936,6 +936,60 @@ impl Entry {
         Ok(editors)
     }
 
+    /// Get the `author` field as a name list, which may include the "and others" marker.
+    /// 
+    /// This is similar to [`Entry::author`] but returns [`NameListEntry`] items that can
+    /// represent either a person or the special "and others" truncation marker.
+    pub fn author_list(&self) -> Result<Vec<NameListEntry>, RetrievalError> {
+        self.get("author")
+            .ok_or_else(|| RetrievalError::Missing("author".to_string()))?
+            .parse::<Vec<NameListEntry>>()
+            .map_err(Into::into)
+    }
+
+    /// Get the `editor` field as a name list, which may include the "and others" marker.
+    /// 
+    /// This is similar to [`Entry::editor`] but returns [`NameListEntry`] items that can
+    /// represent either a person or the special "and others" truncation marker.
+    pub fn editor_list(&self) -> Result<Vec<NameListEntry>, RetrievalError> {
+        self.get("editor")
+            .ok_or_else(|| RetrievalError::Missing("editor".to_string()))?
+            .parse::<Vec<NameListEntry>>()
+            .map_err(Into::into)
+    }
+
+    /// Get the `editor` and `editora` through `editorc` fields as name lists with "and others" support.
+    /// 
+    /// This is similar to [`Entry::editors`] but returns [`NameListEntry`] items that can
+    /// represent either a person or the special "and others" truncation marker.
+    pub fn editor_lists(
+        &self,
+    ) -> Result<Vec<(Vec<NameListEntry>, EditorType)>, TypeError> {
+        let mut editors = vec![];
+
+        let mut parse = |name_field: &str, editor_field: &str| -> Result<(), TypeError> {
+            if let Some(persons) =
+                convert_result(self.get_as::<Vec<NameListEntry>>(name_field))?
+            {
+                let editor_type = self
+                    .get(editor_field)
+                    .map(|chunks| chunks.parse::<EditorType>())
+                    .transpose()?
+                    .unwrap_or(EditorType::Editor);
+                editors.push((persons, editor_type));
+            }
+
+            Ok(())
+        };
+
+        parse("editor", "editortype")?;
+        parse("editora", "editoratype")?;
+        parse("editorb", "editorbtype")?;
+        parse("editorc", "editorctype")?;
+
+        Ok(editors)
+    }
+
     // BibLaTeX supplemental fields.
     fields! {
         abstract_: "abstract",

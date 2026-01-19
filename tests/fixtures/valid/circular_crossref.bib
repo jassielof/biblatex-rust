@@ -1,0 +1,15 @@
+% Test circular crossref references
+@article{entry_a,
+  crossref = {entry_b},
+  title    = {Entry A}
+}
+
+@article{entry_b,
+  crossref = {entry_c},
+  title    = {Entry B}
+}
+
+@article{entry_c,
+  crossref = {entry_a},
+  title    = {Entry C}
+}

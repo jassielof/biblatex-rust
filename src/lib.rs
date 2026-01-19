@@ -15,7 +15,7 @@ pub use raw::{
 };
 pub use types::*;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter, Write};
 
@@ -133,7 +133,8 @@ impl Bibliography {
 
         let mut entries = res.entries.clone();
         for entry in &mut entries {
-            entry.resolve_crossrefs(&res).map_err(|e| {
+            let mut visited = HashSet::new();
+            entry.resolve_crossrefs_impl(&res, &mut visited).map_err(|e| {
                 ParseError::new(e.span, ParseErrorKind::ResolutionError(e.kind))
             })?;
         }
@@ -629,21 +630,36 @@ impl Entry {
     }
 
     /// Resolves all data dependencies defined by `crossref` and `xdata` fields.
-    fn resolve_crossrefs(&mut self, bib: &Bibliography) -> Result<(), TypeError> {
+    fn resolve_crossrefs_impl(
+        &mut self,
+        bib: &Bibliography,
+        visited: &mut HashSet<String>,
+    ) -> Result<(), TypeError> {
+        // Prevent infinite recursion from self-referential or circular crossrefs
+        if !visited.insert(self.key.clone()) {
+            return Ok(()); // Already visited, skip to avoid cycle
+        }
+
         let mut refs = vec![];
 
         if let Some(crossref) = convert_result(self.get_as::<String>("crossref"))? {
-            refs.extend(bib.get(&crossref).cloned());
+            // Skip if crossref points to self
+            if crossref != self.key {
+                refs.extend(bib.get(&crossref).cloned());
+            }
         }
 
         if let Some(keys) = convert_result(self.get_as::<Vec<String>>("xdata"))? {
             for key in keys {
-                refs.extend(bib.get(&key).cloned());
+                // Skip if xdata points to self
+                if key != self.key {
+                    refs.extend(bib.get(&key).cloned());
+                }
             }
         }
 
         for mut crossref in refs {
-            crossref.resolve_crossrefs(bib)?;
+            crossref.resolve_crossrefs_impl(bib, visited)?;
             self.resolve_single_crossref(crossref)?;
         }
 

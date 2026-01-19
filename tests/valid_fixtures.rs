@@ -9,6 +9,52 @@ fn test_gral_bib() {
 }
 
 #[test]
+fn comprehensive() {
+    let contents = fs::read_to_string("comprehensive_test.bib").unwrap();
+    let bibliography = Bibliography::parse(&contents).unwrap();
+    // back and forth check
+    let serialized = bibliography.to_biblatex_string();
+    let bibliography2 = Bibliography::parse(&serialized).unwrap();
+    println!("bib1 len = {}", bibliography.len());
+    println!("bib2 len = {}", bibliography2.len());
+
+    assert_eq!(bibliography.len(), bibliography2.len());
+
+    // check keys
+    for key in bibliography.keys() {
+        println!("Checking key: {}", key);
+        assert!(bibliography2.get(key).is_some());
+    }
+}
+
+#[test]
+fn test_self_referential() {
+    let contents =
+        fs::read_to_string("tests/fixtures/valid/self_referential.bib").unwrap();
+    let bibliography = Bibliography::parse(&contents).unwrap();
+    assert_eq!(bibliography.len(), 1);
+    let entry = bibliography.get("Hartman2022").unwrap();
+    assert_eq!(entry.entry_type, EntryType::InCollection);
+}
+
+#[test]
+fn test_circular_crossref() {
+    let contents =
+        fs::read_to_string("tests/fixtures/valid/circular_crossref.bib").unwrap();
+    let bibliography = Bibliography::parse(&contents).unwrap();
+    assert_eq!(bibliography.len(), 3);
+
+    // All entries should parse successfully without stack overflow
+    let entry_a = bibliography.get("entry_a").unwrap();
+    let entry_b = bibliography.get("entry_b").unwrap();
+    let entry_c = bibliography.get("entry_c").unwrap();
+
+    assert_eq!(entry_a.title().unwrap().format_sentence(), "Entry a");
+    assert_eq!(entry_b.title().unwrap().format_sentence(), "Entry b");
+    assert_eq!(entry_c.title().unwrap().format_sentence(), "Entry c");
+}
+
+#[test]
 fn test_ds_bib() {
     let contents = fs::read_to_string("tests/fixtures/valid/ds.bib").unwrap();
     let bibliography = Bibliography::parse(&contents).unwrap();

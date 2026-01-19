@@ -1,6 +1,6 @@
 # [\#94 Issue](https://github.com/typst/biblatex/issues/94) `open`: Treatment of `and others` in name lists
 
-#### <img src="https://avatars.githubusercontent.com/u/5488440?u=b65313e93a5033f253978827e9813c7630af3b91&v=4" width="50">[maxnoe](https://github.com/maxnoe) opened issue at [2026-01-05 14:22](https://github.com/typst/biblatex/issues/94):
+#### <img src="https://avatars.githubusercontent.com/u/5488440?u=b65313e93a5033f253978827e9813c7630af3b91&v=4" width="50">[maxnoe](https://github.com/maxnoe) opened issue at [2026-01-05 14:22](https://github.com/typst/biblatex/issues/94)
 
 BibLaTeX specifies the special "and others" entry in name lists (author, editor, ...):
 
@@ -16,8 +16,7 @@ From the [biblatex manual, page 15](https://mirrors.ctan.org/macros/latex/contri
 
 This special case is currently not treated here.
 
-@alexanderkoller proposed to raise the issue here, see discussion in pergamon: https://github.com/alexanderkoller/pergamon/issues/142
-
+@alexanderkoller proposed to raise the issue here, see discussion in pergamon: <https://github.com/alexanderkoller/pergamon/issues/142>
 
 I think the right way to implement this would be to change all occurences of `Vec<Person>` to `Vec<NameListEntry>` with:
 
@@ -30,11 +29,6 @@ enum NameListEntry {
 
 and add the corresponding parsing logic.
 
-
-
-
 -------------------------------------------------------------------------------
-
-
 
 [Export of Github issue for [typst/biblatex](https://github.com/typst/biblatex). Generated on 2026.01.15 at 20:45:12.]

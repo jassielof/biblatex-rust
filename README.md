@@ -9,6 +9,8 @@ BibLaTeX can help you to parse `.bib` bibliography files. As opposed to other av
 You can add this library as a dependecy as `biblatex`.
 
 ```rust
+use biblatex::Bibliography;
+
 let src = "@book{tolkien1937, author = {J. R. R. Tolkien}}";
 let bibliography = Bibliography::parse(src).unwrap();
 let entry = bibliography.get("tolkien1937").unwrap();

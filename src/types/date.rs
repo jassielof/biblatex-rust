@@ -638,6 +638,12 @@ impl Datetime {
             }
         }
 
+        if let Some(time) = self.time {
+            fields.push(("hour".to_string(), format!("{:02}", time.hour)));
+            fields.push(("minute".to_string(), format!("{:02}", time.minute)));
+            fields.push(("second".to_string(), format!("{:02}", time.second)));
+        }
+
         fields
     }
 }
@@ -693,6 +699,10 @@ impl Display for Datetime {
             } else {
                 write!(f, "-{:02}", month + 1)?;
             }
+        }
+
+        if let Some(time) = self.time {
+            write!(f, "T{:02}:{:02}:{:02}", time.hour, time.minute, time.second)?;
         }
 
         Ok(())
@@ -956,7 +966,7 @@ mod tests {
         );
 
         let date = Date::parse(&[s(N("2020-04-04T18:30:31/"), 0..20)]).unwrap();
-        assert_eq!(date.to_chunks(), vec![d(N("2020-04-04/.."))]);
+        assert_eq!(date.to_chunks(), vec![d(N("2020-04-04T18:30:31/.."))]);
         assert_eq!(
             date,
             Date {

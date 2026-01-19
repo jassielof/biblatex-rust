@@ -1,0 +1,31 @@
+% Test @ sign in field names (BibTeX compatibility)
+@article{foo,
+   title={bar},
+  year={2025},
+  @location={Mom's Basement}
+}
+
+@article{test_at_comment,
+  title={Test Article},
+  author={John Doe},
+  @commented_field={This should be ignored},
+  year={2024},
+  @another_comment={Also ignored}
+}
+
+@book{test_at_with_braces,
+  title={Book with Nested Braces},
+  author={Jane Smith},
+  @complex_field={Value with {nested {braces}}},
+  year={2023},
+  publisher={Test Publisher}
+}
+
+@inproceedings{test_at_multiple,
+  title={Conference Paper},
+  @comment1={First comment},
+  @comment2={Second comment},
+  author={Bob Jones},
+  @comment3={Third comment},
+  year={2022}
+}

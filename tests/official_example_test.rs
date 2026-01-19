@@ -1,9 +1,11 @@
 use biblatex::Bibliography;
 use std::fs;
 
-fn main() {
+#[test]
+fn test_official_example() {
     let contents = fs::read_to_string("tests/fixtures/valid/example.bib").unwrap();
     let bibliography = Bibliography::parse(&contents).unwrap();
-    // just check if it parses correctly, nothing else
-    println!("{:#?}", bibliography);
+    
+    // Verify it parses correctly and contains entries
+    assert!(!bibliography.is_empty(), "Bibliography should contain entries");
 }

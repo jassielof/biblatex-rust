@@ -395,6 +395,38 @@ impl<'s> BiblatexParser<'s> {
                 return Ok(fields);
             }
 
+            // BibTeX compatibility: skip fields starting with @
+            // These are used as a way to "comment out" fields in BibTeX
+            if self.s.peek() == Some('@') {
+                // Skip the @ sign
+                self.s.eat();
+                // Skip to the next comma or closing brace
+                while let Some(c) = self.s.peek() {
+                    if c == ',' || c == '}' {
+                        break;
+                    }
+                    // Handle braced values within the commented field
+                    if c == '{' {
+                        self.s.eat();
+                        let mut depth = 1;
+                        while depth > 0 && !self.s.done() {
+                            match self.s.eat() {
+                                Some('{') => depth += 1,
+                                Some('}') => depth -= 1,
+                                _ => {}
+                            }
+                        }
+                    } else {
+                        self.s.eat();
+                    }
+                }
+                // If we're at a comma, consume it
+                if self.s.peek() == Some(',') {
+                    self.comma()?;
+                }
+                continue;
+            }
+
             let (key, value) = self.field()?;
 
             self.s.eat_whitespace();

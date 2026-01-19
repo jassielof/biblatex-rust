@@ -26,15 +26,21 @@ This library is tested against BibLaTeX version 3.12 (2025-07-10) on CTAN.
 
 ## References
 
+### BibLaTeX references
+
 - [WikiBook section on LaTeX bibliography management](https://en.wikibooks.org/wiki/LaTeX/Bibliography_Management)
 - [BibLaTeX on CTAN](https://ctan.org/pkg/biblatex)
   - [Documentation PDF (English)](https://mirrors.ctan.org/macros/latex/contrib/biblatex/doc/biblatex.pdf)
+
+### BibTeX references
+
+- [BibTeXing by Oren Patashnik](http://www.bibtex.org/Format/)
 
 The generated documentation more specifically describes the selection and behavior of the getters but generally, they follow the convention of being the snake-case name of the corresponding field (such that the getter for `booktitleaddon` is named `book_title_addon`).
 
 ## Limitations
 
-This library attempts to provide fairly comprehensive coverage of the BibLaTeX spec with which most of the `.bib` files in circulation can be processed.
+This library attempts to provide fairly comprehensive coverage of t he BibLaTeX spec with which most of the `.bib` files in circulation can be processed.
 
 However, the crate currently has some limitations:
 

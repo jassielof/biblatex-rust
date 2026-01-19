@@ -4,10 +4,6 @@ import os
 FILENAME = "comprehensive_test.bib"
 TARGET_SIZE_MB = 2.5  # Target size in MB
 
-# ---------------------------------------------------------------------------
-# DATA MODELS & TEMPLATES (Derived from biblatex database guide)
-# ---------------------------------------------------------------------------
-
 # Standard BibLaTeX Entry Types
 ENTRY_TYPES = [
     "article", "book", "mvbook", "inbook", "bookinbook", "suppbook",
@@ -251,45 +247,37 @@ def generate_entry(index):
 
     return f"@{entry_type}{{{key},\n{indent}{entry_body}\n}}\n"
 
-# ---------------------------------------------------------------------------
-# MAIN EXECUTION
-# ---------------------------------------------------------------------------
+print(f"Generating {FILENAME} with target size {TARGET_SIZE_MB}MB...")
 
-def create_bib_file():
-    print(f"Generating {FILENAME} with target size {TARGET_SIZE_MB}MB...")
+with open(FILENAME, "w", encoding="utf-8") as f:
+    # 1. Write Header & Preamble
+    f.write(PREAMBLE_AND_STRINGS)
 
-    with open(FILENAME, "w", encoding="utf-8") as f:
-        # 1. Write Header & Preamble
-        f.write(PREAMBLE_AND_STRINGS)
+    # 2. Write Gold Standard Edge Cases
+    f.write("\n% --- EDGE CASE ENTRIES (FROM GUIDE) ---\n")
+    for entry in EDGE_CASE_ENTRIES:
+        f.write(entry)
 
-        # 2. Write Gold Standard Edge Cases
-        f.write("\n% --- EDGE CASE ENTRIES (FROM GUIDE) ---\n")
-        for entry in EDGE_CASE_ENTRIES:
-            f.write(entry)
+    # 3. Bulk Generation Loop
+    f.write("\n% --- BULK GENERATED ENTRIES ---\n")
 
-        # 3. Bulk Generation Loop
-        f.write("\n% --- BULK GENERATED ENTRIES ---\n")
+    count = 0
+    current_size = 0
+    target_bytes = TARGET_SIZE_MB * 1024 * 1024
 
-        count = 0
-        current_size = 0
-        target_bytes = TARGET_SIZE_MB * 1024 * 1024
+    while current_size < target_bytes:
+        # Buffer writes to avoid IO overhead
+        buffer = []
+        for _ in range(100): # Generate batches of 100
+            buffer.append(generate_entry(count))
+            count += 1
 
-        while current_size < target_bytes:
-            # Buffer writes to avoid IO overhead
-            buffer = []
-            for _ in range(100): # Generate batches of 100
-                buffer.append(generate_entry(count))
-                count += 1
+        block = "\n".join(buffer)
+        f.write(block)
+        f.flush() # Ensure size check is accurate
+        current_size = os.path.getsize(FILENAME)
 
-            block = "\n".join(buffer)
-            f.write(block)
-            f.flush() # Ensure size check is accurate
-            current_size = os.path.getsize(FILENAME)
+        if count % 1000 == 0:
+            print(f"Generated {count} entries... ({current_size / 1024 / 1024:.2f} MB)")
 
-            if count % 1000 == 0:
-                print(f"Generated {count} entries... ({current_size / 1024 / 1024:.2f} MB)")
-
-    print(f"Done! Created {FILENAME} with {count} entries. Size: {current_size / 1024 / 1024:.2f} MB")
-
-if __name__ == "__main__":
-    create_bib_file()
+print(f"Done! Created {FILENAME} with {count} entries. Size: {current_size / 1024 / 1024:.2f} MB")

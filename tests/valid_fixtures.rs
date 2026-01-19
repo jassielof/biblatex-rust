@@ -306,3 +306,77 @@ fn test_case_bib() {
         _ => panic!(),
     }
 }
+
+#[test]
+fn test_non_standard_types() {
+    let contents =
+        fs::read_to_string("tests/fixtures/valid/non_standard_types.bib").unwrap();
+    let bibliography = Bibliography::parse(&contents).unwrap();
+    assert_eq!(bibliography.len(), 15);
+
+    // Test artwork type
+    let artwork = bibliography.get("picasso1937").unwrap();
+    assert_eq!(artwork.entry_type, EntryType::Artwork);
+    assert_eq!(artwork.title().unwrap().format_sentence(), "Guernica");
+
+    // Test audio type
+    let audio = bibliography.get("beatles1969").unwrap();
+    assert_eq!(audio.entry_type, EntryType::Audio);
+
+    // Test video type
+    let video = bibliography.get("nolan2010").unwrap();
+    assert_eq!(video.entry_type, EntryType::Video);
+
+    // Test movie type
+    let movie = bibliography.get("kubrick1968").unwrap();
+    assert_eq!(movie.entry_type, EntryType::Movie);
+
+    // Test music type
+    let music = bibliography.get("mozart1791").unwrap();
+    assert_eq!(music.entry_type, EntryType::Music);
+
+    // Test review type (should behave like Article)
+    let review = bibliography.get("ebert1999").unwrap();
+    assert_eq!(review.entry_type, EntryType::Review);
+    assert!(review.journal_title().is_ok());
+
+    // Test performance type
+    let performance = bibliography.get("shakespeare1599").unwrap();
+    assert_eq!(performance.entry_type, EntryType::Performance);
+
+    // Test standard type
+    let standard = bibliography.get("iso8601").unwrap();
+    assert_eq!(standard.entry_type, EntryType::Standard);
+
+    // Test image type
+    let image = bibliography.get("adams1941").unwrap();
+    assert_eq!(image.entry_type, EntryType::Image);
+
+    // Test letter type
+    let letter = bibliography.get("einstein1939").unwrap();
+    assert_eq!(letter.entry_type, EntryType::Letter);
+
+    // Test commentary type
+    let commentary = bibliography.get("blackstone1765").unwrap();
+    assert_eq!(commentary.entry_type, EntryType::Commentary);
+
+    // Test jurisdiction type
+    let jurisdiction = bibliography.get("brownboard1954").unwrap();
+    assert_eq!(jurisdiction.entry_type, EntryType::Jurisdiction);
+
+    // Test legislation type
+    let legislation = bibliography.get("civilrights1964").unwrap();
+    assert_eq!(legislation.entry_type, EntryType::Legislation);
+
+    // Test legal type
+    let legal = bibliography.get("magna1215").unwrap();
+    assert_eq!(legal.entry_type, EntryType::Legal);
+
+    // Test bibnote type
+    let bibnote = bibliography.get("note1").unwrap();
+    assert_eq!(bibnote.entry_type, EntryType::BibNote);
+
+    // Test BibTeX conversion (all non-standard types should convert to Misc except Review -> Article)
+    assert_eq!(artwork.entry_type.to_bibtex(), EntryType::Misc);
+    assert_eq!(review.entry_type.to_bibtex(), EntryType::Article);
+}

@@ -54,6 +54,23 @@ pub enum EntryType {
     Set,
     XData,
 
+    // BibLaTeX Non-standard Types (§2.1.3)
+    Artwork,
+    Audio,
+    BibNote,
+    Commentary,
+    Image,
+    Jurisdiction,
+    Legislation,
+    Legal,
+    Letter,
+    Movie,
+    Music,
+    Performance,
+    Review,
+    Standard,
+    Video,
+
     Unknown(String),
 }
 
@@ -212,6 +229,22 @@ impl EntryType {
             Self::Dataset => Self::Misc,
             Self::Set => Self::Misc,
             Self::XData => Self::Misc,
+            // Non-standard types
+            Self::Artwork => Self::Misc,
+            Self::Audio => Self::Misc,
+            Self::BibNote => Self::Misc,
+            Self::Commentary => Self::Misc,
+            Self::Image => Self::Misc,
+            Self::Jurisdiction => Self::Misc,
+            Self::Legislation => Self::Misc,
+            Self::Legal => Self::Misc,
+            Self::Letter => Self::Misc,
+            Self::Movie => Self::Misc,
+            Self::Music => Self::Misc,
+            Self::Performance => Self::Misc,
+            Self::Review => Self::Article,
+            Self::Standard => Self::Misc,
+            Self::Video => Self::Misc,
             Self::Unknown(_) => Self::Misc,
             _ => self.clone(),
         }
@@ -625,6 +658,26 @@ impl EntryType {
                 reqs.required.clear();
                 reqs.author_eds_field = AuthorMode::NoneRequired;
                 reqs.needs_date = false;
+            }
+            // Non-standard types (§2.1.3)
+            Self::Artwork
+            | Self::Audio
+            | Self::BibNote
+            | Self::Commentary
+            | Self::Image
+            | Self::Jurisdiction
+            | Self::Legislation
+            | Self::Legal
+            | Self::Letter
+            | Self::Movie
+            | Self::Music
+            | Self::Performance
+            | Self::Standard
+            | Self::Video => {
+                reqs = Self::Misc.requirements();
+            }
+            Self::Review => {
+                reqs = Self::Article.requirements();
             }
             Self::Unknown(_) => {
                 reqs = Self::MvCollection.requirements();

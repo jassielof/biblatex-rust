@@ -292,7 +292,7 @@ pub(crate) fn split_token_lists(vals: ChunksRef, keyword: &str) -> Vec<Chunks> {
 }
 
 /// Trim the beginning and the end of the parsed field
-fn sanitize_latest(latest: &mut Vec<Spanned<Chunk>>) {
+fn sanitize_latest(latest: &mut [Spanned<Chunk>]) {
     if latest.is_empty() {
         return;
     }

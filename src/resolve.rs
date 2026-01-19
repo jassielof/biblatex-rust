@@ -10,15 +10,6 @@ use crate::{ChunksExt, Span, Spanned};
 use std::collections::BTreeMap;
 use unscanny::Scanner;
 
-/// Fully parse a field, resolving abbreviations and LaTeX commands.
-pub fn parse_field(
-    key: &str,
-    field: &Field,
-    abbreviations: &Vec<Pair<'_>>,
-) -> Result<Chunks, ParseError> {
-    parse_field_with_external_abbrevs(key, field, abbreviations, &BTreeMap::new())
-}
-
 /// Fully parse a field, resolving abbreviations (including external ones) and LaTeX commands.
 pub fn parse_field_with_external_abbrevs(
     key: &str,
@@ -175,6 +166,11 @@ impl<'s> ContentParser<'s> {
             }
             _ if self.verb_field => Ok("\\".to_string()),
             Some(c) if !c.is_whitespace() && !c.is_control() => self.command(),
+            Some(' ') => {
+                // Handle control space: \<space> should just produce a space
+                self.s.eat();
+                Ok(" ".to_string())
+            }
             Some(c) => Ok(format!("\\{}", c)),
             None => Err(ParseError::new(self.here(), ParseErrorKind::UnexpectedEof)),
         }
@@ -285,16 +281,6 @@ impl<'s> ContentParser<'s> {
             Chunk::Normal(String::new())
         }
     }
-}
-
-/// Resolves `Chunk::Abbreviation` items to their respective string values.
-fn resolve_abbreviation(
-    key: &str,
-    abbr: &str,
-    span: Span,
-    map: &Vec<Pair<'_>>,
-) -> Result<Chunks, ParseError> {
-    resolve_abbreviation_with_external(key, abbr, span, map, &BTreeMap::new())
 }
 
 /// Resolves `Chunk::Abbreviation` items, checking external abbreviations if not found in file.
@@ -522,8 +508,9 @@ fn is_single_char_func(c: char, ws: bool) -> bool {
 #[allow(non_snake_case)]
 mod tests {
     use crate::raw::Pair;
+    use std::collections::BTreeMap;
 
-    use super::{parse_field, Chunk, RawChunk, Spanned};
+    use super::{parse_field_with_external_abbrevs, Chunk, RawChunk, Spanned};
 
     fn N(s: &str) -> Chunk {
         Chunk::Normal(s.to_string())
@@ -559,7 +546,7 @@ mod tests {
             z(RawChunk::Normal("last")),
         ];
 
-        let res = parse_field("", &field, &map).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &map, &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("ABCgood "));
         assert_eq!(res[1].v, V("TIMES"));
         assert_eq!(res[2].v, N("hellopersonlast"));
@@ -572,7 +559,7 @@ mod tests {
             "\\\"{A}ther und {\"\\LaTeX \"} {\\relax for you\\}}",
         ))];
 
-        let res = parse_field("", &field, &Vec::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("Äther und "));
         assert_eq!(res[1].v, V("\"LaTeX\""));
         assert_eq!(res[2].v, N(" "));
@@ -581,17 +568,17 @@ mod tests {
 
         let field = vec![z(RawChunk::Normal("M\\\"etal S\\= ound"))];
 
-        let res = parse_field("", &field, &Vec::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("Mëtal Sōund"));
 
         let field = vec![z(RawChunk::Normal(r"L\^{e} D\~{u}ng Tr\'{a}ng"))];
 
-        let res = parse_field("", &field, &Vec::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("Lê Dũng Tráng"));
 
         let field = vec![z(RawChunk::Normal(r"\b b \c c \d a \H o \k a \r a \u a \v a"))];
 
-        let res = parse_field("", &field, &Vec::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("b̲ ç ạ ő ą å ă ǎ"));
     }
 
@@ -601,7 +588,7 @@ mod tests {
             "The $11^{th}$ International Conference on How To Make \\$\\$",
         ))];
 
-        let res = parse_field("", &field, &Vec::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("The "));
         assert_eq!(res[1].v, M("11^{th}"));
         assert_eq!(res[2].v, N(" International Conference on How To Make $$"));
@@ -613,7 +600,7 @@ mod tests {
         let field =
             vec![z(RawChunk::Normal("Bose\\textendash{}Einstein uses Win\\-dows"))];
 
-        let res = parse_field("", &field, &Vec::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("Bose–Einstein uses Windows"));
     }
 
@@ -622,7 +609,7 @@ mod tests {
         let field =
             vec![z(RawChunk::Normal("- Knitting A--Z --- A practical guide -----"))];
 
-        let res = parse_field("", &field, &Vec::new()).unwrap();
+        let res = parse_field_with_external_abbrevs("", &field, &Vec::new(), &BTreeMap::new()).unwrap();
         assert_eq!(res[0].v, N("- Knitting A–Z — A practical guide —–"));
     }
 }

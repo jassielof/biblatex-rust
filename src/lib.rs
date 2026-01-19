@@ -828,9 +828,17 @@ impl Entry {
             return Ok(());
         }
 
+        // Only inherit date from crossref if this entry doesn't already have date information
         if req.needs_date {
-            if let Some(date) = convert_result(crossref.date())? {
-                self.set_date(date);
+            let has_date_fields = self.get("date").is_some()
+                || self.get("year").is_some()
+                || self.get("month").is_some()
+                || self.get("day").is_some();
+
+            if !has_date_fields {
+                if let Some(date) = convert_result(crossref.date())? {
+                    self.set_date(date);
+                }
             }
         }
 

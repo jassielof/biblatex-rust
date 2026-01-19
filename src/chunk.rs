@@ -62,6 +62,12 @@ impl Chunk {
     /// The `is_verbatim` argument indicates whether this string is intended for
     /// a verbatim field like `file` with limited escapes.
     pub fn to_biblatex_string(&self, is_verbatim: bool) -> String {
+        // Math chunks should not have their content escaped - they contain LaTeX math
+        // code that should be preserved exactly as-is
+        if matches!(self, Chunk::Math(_)) {
+            return self.get().to_string();
+        }
+
         let mut s = String::new();
         for c in self.get().chars() {
             if is_escapable(c, is_verbatim, false) {

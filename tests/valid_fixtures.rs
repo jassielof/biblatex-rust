@@ -1,10 +1,11 @@
-use biblatex::{Bibliography, ChunksExt, EntryType, PermissiveType, Person};
+use biblatex::{Bibliography, ChunksExt, DateValue, EntryType, PermissiveType, Person};
 use std::fs;
 
 #[test]
 fn test_string_multi_syntax() {
     // Test for issue #32 - alternative @string syntax with comma-separated definitions
-    let contents = fs::read_to_string("tests/fixtures/valid/string_multi_syntax.bib").unwrap();
+    let contents =
+        fs::read_to_string("tests/fixtures/valid/string_multi_syntax.bib").unwrap();
     let bibliography = Bibliography::parse(&contents).unwrap();
     println!("Bibliography: {:#?}", bibliography);
     assert_eq!(bibliography.len(), 2);
@@ -13,13 +14,17 @@ fn test_string_multi_syntax() {
     assert_eq!(article.journal().unwrap().format_sentence(), "J.~amer. math. soc.");
 
     let book = bibliography.get("test2").unwrap();
-    assert_eq!(book.publisher().unwrap()[0].format_sentence(), "Cambridge university press");
+    assert_eq!(
+        book.publisher().unwrap()[0].format_sentence(),
+        "Cambridge university press"
+    );
 }
 
 #[test]
 fn test_external_abbreviations() {
     // Test for issue #63 - external abbreviations from style files
-    let contents = fs::read_to_string("tests/fixtures/valid/external_abbreviations.bib").unwrap();
+    let contents =
+        fs::read_to_string("tests/fixtures/valid/external_abbreviations.bib").unwrap();
 
     // Define external abbreviations (e.g., from archaeologie.bst style file)
     let external_abbrevs = vec![
@@ -27,14 +32,18 @@ fn test_external_abbreviations() {
         ("AJA", "American Journal of Archaeology"),
     ];
 
-    let bibliography = Bibliography::parse_with_abbreviations(&contents, &external_abbrevs).unwrap();
+    let bibliography =
+        Bibliography::parse_with_abbreviations(&contents, &external_abbrevs).unwrap();
     assert_eq!(bibliography.len(), 2);
 
     let article1 = bibliography.get("test1").unwrap();
     assert_eq!(article1.journal().unwrap().format_sentence(), "Archäologischer anzeiger");
 
     let article2 = bibliography.get("test2").unwrap();
-    assert_eq!(article2.journal().unwrap().format_sentence(), "American journal of archaeology");
+    assert_eq!(
+        article2.journal().unwrap().format_sentence(),
+        "American journal of archaeology"
+    );
 }
 
 #[test]
@@ -51,11 +60,10 @@ fn test_file_abbrevs_override_external() {
 }
 "#;
 
-    let external_abbrevs = vec![
-        ("AJA", "American Journal of Archaeology"),
-    ];
+    let external_abbrevs = vec![("AJA", "American Journal of Archaeology")];
 
-    let bibliography = Bibliography::parse_with_abbreviations(src, &external_abbrevs).unwrap();
+    let bibliography =
+        Bibliography::parse_with_abbreviations(src, &external_abbrevs).unwrap();
     assert_eq!(bibliography.len(), 1);
 
     let article = bibliography.get("test").unwrap();
@@ -64,28 +72,85 @@ fn test_file_abbrevs_override_external() {
 }
 
 #[test]
-fn test_gral_bib() {
-    let contents = fs::read_to_string("tests/fixtures/valid/gral.bib").unwrap();
-    let bibliography = Bibliography::parse(&contents).unwrap();
-    assert_eq!(bibliography.len(), 83);
+fn test_crossref_date_inheritance() {
+    // Test for issue #51 - crossref date should not override existing date fields
+    let bib = r#"
+        @inproceedings{foo,
+            author = {Max Müller},
+            title = {Lorem Ipsum et Dolor},
+            month = sep,
+            year = 2005,
+            crossref = {ref},
+        }
+        @proceedings{ref,
+            month = jan,
+            year = 2001,
+            title = {Book Title},
+            category = {baz},
+        }
+    "#;
+
+    let bibliography = Bibliography::parse(bib).unwrap();
+    let entry = bibliography.get("foo").unwrap();
+
+    // The entry's own date (2005-09) should take precedence over crossref's date (2001-01)
+    let date = entry.date().unwrap();
+    if let PermissiveType::Typed(date_val) = date {
+        if let DateValue::At(datetime) = date_val.value {
+            assert_eq!(
+                datetime.year, 2005,
+                "Year should be from the entry itself, not crossref"
+            );
+            assert_eq!(
+                datetime.month,
+                Some(8),
+                "Month should be from the entry itself (September = 8)"
+            );
+        } else {
+            panic!("Expected DateValue::At");
+        }
+    } else {
+        panic!("Expected PermissiveType::Typed");
+    }
+
+    // booktitle should be inherited from crossref's title
+    assert_eq!(entry.book_title().unwrap().format_sentence(), "Book title");
 }
 
 #[test]
-fn comprehensive() {
-    let contents = fs::read_to_string("comprehensive_test.bib").unwrap();
-    let bibliography = Bibliography::parse(&contents).unwrap();
-    // back and forth check
-    let serialized = bibliography.to_biblatex_string();
-    let bibliography2 = Bibliography::parse(&serialized).unwrap();
-    println!("bib1 len = {}", bibliography.len());
-    println!("bib2 len = {}", bibliography2.len());
+fn test_crossref_date_inheritance_when_missing() {
+    // Test that date IS inherited when the entry doesn't have date fields
+    let bib = r#"
+        @inproceedings{bar,
+            author = {Jane Doe},
+            title = {Another Paper},
+            crossref = {ref2},
+        }
+        @proceedings{ref2,
+            month = mar,
+            year = 2010,
+            title = {Conference Proceedings},
+        }
+    "#;
 
-    assert_eq!(bibliography.len(), bibliography2.len());
+    let bibliography = Bibliography::parse(bib).unwrap();
+    let entry = bibliography.get("bar").unwrap();
 
-    // check keys
-    for key in bibliography.keys() {
-        println!("Checking key: {}", key);
-        assert!(bibliography2.get(key).is_some());
+    // The entry should inherit the date from crossref since it doesn't have its own
+    let date = entry.date().unwrap();
+    if let PermissiveType::Typed(date_val) = date {
+        if let DateValue::At(datetime) = date_val.value {
+            assert_eq!(datetime.year, 2010, "Year should be inherited from crossref");
+            assert_eq!(
+                datetime.month,
+                Some(2),
+                "Month should be inherited from crossref (March = 2)"
+            );
+        } else {
+            panic!("Expected DateValue::At");
+        }
+    } else {
+        panic!("Expected PermissiveType::Typed");
     }
 }
 

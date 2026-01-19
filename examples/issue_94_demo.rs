@@ -78,13 +78,20 @@ fn main() {
     let authors = entry3.author_list().unwrap();
     println!("  Title: {}", entry3.title().unwrap().format_verbatim());
     println!("  Total entries: {}", authors.len());
-    println!("  Named authors: {}", authors.iter().filter(|a| !a.is_and_others()).count());
+    println!(
+        "  Named authors: {}",
+        authors.iter().filter(|a| !a.is_and_others()).count()
+    );
     println!("  Has 'and others': {}", authors.iter().any(|a| a.is_and_others()));
-    
+
     // Get just the person entries
     let people: Vec<_> = authors.iter().filter_map(|a| a.as_person()).collect();
     println!("  First author: {} {}", people[0].given_name, people[0].name);
-    println!("  Last named author: {} {}", people.last().unwrap().given_name, people.last().unwrap().name);
+    println!(
+        "  Last named author: {} {}",
+        people.last().unwrap().given_name,
+        people.last().unwrap().name
+    );
     println!();
 
     // Example 4: Backward compatibility
@@ -101,10 +108,17 @@ fn main() {
     let reparsed = Bibliography::parse(&serialized).unwrap();
     let reparsed_entry = reparsed.get("paper1").unwrap();
     let reparsed_authors = reparsed_entry.author_list().unwrap();
-    println!("  Original 'and others' count: {}", authors.iter().filter(|a| a.is_and_others()).count());
-    println!("  Reparsed 'and others' count: {}", reparsed_authors.iter().filter(|a| a.is_and_others()).count());
-    println!("  Roundtrip successful: {}", 
-        authors.iter().filter(|a| a.is_and_others()).count() == 
+    println!(
+        "  Original 'and others' count: {}",
+        authors.iter().filter(|a| a.is_and_others()).count()
+    );
+    println!(
+        "  Reparsed 'and others' count: {}",
         reparsed_authors.iter().filter(|a| a.is_and_others()).count()
+    );
+    println!(
+        "  Roundtrip successful: {}",
+        authors.iter().filter(|a| a.is_and_others()).count()
+            == reparsed_authors.iter().filter(|a| a.is_and_others()).count()
     );
 }

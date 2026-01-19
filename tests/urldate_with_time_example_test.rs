@@ -15,8 +15,14 @@ fn test_urldate_with_time_example() {
     let bib = Bibliography::parse(src).unwrap();
     let entry = bib.get("online-source-with-time").unwrap();
 
-    assert_eq!(entry.title().unwrap().format_sentence(), "Knuth: computers and typesetting");
-    assert_eq!(entry.url().unwrap(), "http://www-cs-faculty.stanford.edu/~uno/abcde.html");
+    assert_eq!(
+        entry.title().unwrap().format_sentence(),
+        "Knuth: computers and typesetting"
+    );
+    assert_eq!(
+        entry.url().unwrap(),
+        "http://www-cs-faculty.stanford.edu/~uno/abcde.html"
+    );
 
     // Access the urldate field with time information
     if let Ok(PermissiveType::Typed(date)) = entry.url_date() {
@@ -24,7 +30,7 @@ fn test_urldate_with_time_example() {
             assert_eq!(datetime.year, 2024);
             assert_eq!(datetime.month, Some(4)); // May is month 4 (0-indexed)
             assert_eq!(datetime.day, Some(8)); // 9th is day 8 (0-indexed)
-            
+
             assert!(datetime.time.is_some(), "Should have time information");
             let time = datetime.time.unwrap();
             assert_eq!(time.hour, 14);

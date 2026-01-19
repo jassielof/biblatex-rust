@@ -14,15 +14,15 @@ fn test_non_standard_types_parse() {
     for entry in bibliography.iter() {
         // Verify each entry can be accessed
         assert!(!entry.key.is_empty(), "Entry key should not be empty");
-        
+
         // Title is optional for some types like bibnote
         // Just verify it doesn't panic when accessed
         let _ = entry.title();
-        
+
         // Author is optional for some types like jurisdiction, legislation, etc.
         // Just verify it doesn't panic when accessed
         let _ = entry.author();
-        
+
         // Verify date is parseable if present
         if let Ok(PermissiveType::Typed(d)) = entry.date() {
             if let DateValue::At(dt) = d.value {

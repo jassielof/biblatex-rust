@@ -479,9 +479,12 @@ fn test_urldate_with_time() {
 
     // Test first entry with full datetime
     let entry1 = bibliography.get("online-source-with-time").unwrap();
-    assert_eq!(entry1.title().unwrap().format_sentence(), "Knuth: computers and typesetting");
+    assert_eq!(
+        entry1.title().unwrap().format_sentence(),
+        "Knuth: computers and typesetting"
+    );
     assert_eq!(entry1.author().unwrap()[0].name, "Knuth");
-    
+
     let urldate1 = entry1.url_date().unwrap();
     if let PermissiveType::Typed(date) = urldate1 {
         if let biblatex::DateValue::At(datetime) = date.value {

@@ -6,6 +6,11 @@ env:
   RUSTDOCFLAGS: "-Dwarnings"
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   test:
     runs-on: ubuntu-latest

@@ -33,7 +33,7 @@ jobs:
       - run: cargo fmt --check --all
       - run: cargo doc --workspace --no-deps
       - name: Add redirect
-        run: echo '<meta http-equiv="refresh" content="0;url=xdg_desktop_entry/index.html">' > target/doc/index.html
+        run: echo '<meta http-equiv="refresh" content="0;url=biblatext/index.html">' > target/doc/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

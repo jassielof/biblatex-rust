@@ -20,7 +20,7 @@ use std::fmt;
 use std::fmt::{Debug, Display, Formatter, Write};
 
 use macros::*;
-use mechanics::{is_verbatim_field, AuthorMode, PagesChapterMode};
+use mechanics::{AuthorMode, PagesChapterMode, is_verbatim_field};
 
 use paste::paste;
 
@@ -682,11 +682,7 @@ impl Entry {
     /// Get an entry but return None for empty chunk slices.
     fn get_non_empty(&'_ self, key: &str) -> Option<ChunksRef<'_>> {
         let entry = self.get(key)?;
-        if !entry.is_empty() {
-            Some(entry)
-        } else {
-            None
-        }
+        if !entry.is_empty() { Some(entry) } else { None }
     }
 
     /// Resolves all data dependencies defined by `crossref` and `xdata` fields.

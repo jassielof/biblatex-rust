@@ -3,7 +3,7 @@ use unicode_normalization::char;
 use crate::chunk::{Chunk, Chunks};
 use crate::mechanics::is_verbatim_field;
 use crate::raw::{
-    is_id_continue, Field, Pair, ParseError, ParseErrorKind, RawChunk, Token,
+    Field, Pair, ParseError, ParseErrorKind, RawChunk, Token, is_id_continue,
 };
 use crate::types::get_month_for_abbr;
 use crate::{ChunksExt, Span, Spanned};
@@ -510,7 +510,7 @@ mod tests {
     use crate::raw::Pair;
     use std::collections::BTreeMap;
 
-    use super::{parse_field_with_external_abbrevs, Chunk, RawChunk, Spanned};
+    use super::{Chunk, RawChunk, Spanned, parse_field_with_external_abbrevs};
 
     fn N(s: &str) -> Chunk {
         Chunk::Normal(s.to_string())

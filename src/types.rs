@@ -15,7 +15,7 @@ use std::str::FromStr;
 use roman_numerals_rs::RomanNumeral;
 use strum::{AsRefStr, Display, EnumString};
 
-use crate::{chunk::*, Span, Spanned};
+use crate::{Span, Spanned, chunk::*};
 use unscanny::Scanner;
 
 /// An error that may occur while parsing the chunks in a field into a specific
@@ -473,7 +473,7 @@ impl Type for Gender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{chunk::tests::*, Bibliography};
+    use crate::{Bibliography, chunk::tests::*};
 
     #[test]
     fn test_ranges() {

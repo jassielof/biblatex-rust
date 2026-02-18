@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
 
-use crate::{chunk::*, Spanned};
+use crate::{Spanned, chunk::*};
 use crate::{Type, TypeError};
 
 #[cfg(feature = "serde")]
@@ -845,7 +845,9 @@ Claude Garamond",
         assert_eq!(people[1].given_name, "Simon");
 
         // AUTHOR = {nosortothers=true and Hans Harman and given=Simon, family=Beumont, prefix=de, useprefix=true}
-        let people = &[Spanned::zero(N("nosortothers=true and Hans Harman and given=Simon, family=Beumont, prefix=de, useprefix=true"))];
+        let people = &[Spanned::zero(N(
+            "nosortothers=true and Hans Harman and given=Simon, family=Beumont, prefix=de, useprefix=true",
+        ))];
         let people: Vec<Person> = Type::from_chunks(people).unwrap();
         assert_eq!(people.len(), 3);
         assert_eq!(people[0].name, "");

@@ -853,11 +853,7 @@ pub fn parse_colon(s: &mut Scanner) -> Result<(), TypeError> {
 
 fn days_in_month(month: u8, year: i32) -> u8 {
     if month == 1 {
-        if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
-            29
-        } else {
-            28
-        }
+        if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) { 29 } else { 28 }
     } else if month < 7 {
         31 - month % 2
     } else {

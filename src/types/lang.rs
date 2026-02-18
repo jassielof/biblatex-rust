@@ -3,7 +3,7 @@ use std::str::FromStr;
 use strum::{Display, EnumString};
 
 #[cfg(feature = "unic-langid")]
-use unic_langid::{langid, LanguageIdentifier};
+use unic_langid::{LanguageIdentifier, langid};
 
 use crate::{
     Chunk, Chunks, ChunksExt, ChunksRef, Spanned, Type, TypeError, TypeErrorKind,

@@ -1,7 +1,7 @@
 [package]
 name = "biblatex"
 version = "0.11.0+spec-3.21"
-edition = "2021"
+edition = "2024"
 description = "Parsing, writing, and evaluating BibTeX and BibLaTeX files"
 readme = "README.md"
 repository = "https://github.com/typst/biblatex"

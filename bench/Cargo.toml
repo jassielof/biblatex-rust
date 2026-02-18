@@ -12,4 +12,4 @@ path = "src/bench.rs"
 
 [dependencies]
 biblatex = { path = ".." }
-criterion = "0.3"
+criterion = "0.8"

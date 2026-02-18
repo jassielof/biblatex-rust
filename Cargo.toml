@@ -14,7 +14,7 @@ members = ["bench"]
 
 [dependencies]
 paste = { package = "pastey", version = "0.2.1" }
-roman-numerals-rs = "3.1.0"
+roman-numerals-rs = "4.1.0"
 serde = { version = "1", features = ["derive"], optional = true }
 strum = { version = "0.27", features = ["derive"] }
 unic-langid = { version = "0.9.6", features = ["macros"], optional = true }

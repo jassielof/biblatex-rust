@@ -427,11 +427,11 @@ pub(crate) fn split_at_normal_char(
     let mut search_result = None;
 
     for (chunk_idx, val) in src.iter().enumerate() {
-        if let Chunk::Normal(s) = &val.v {
-            if let Some(str_idx) = s.find(c) {
-                search_result = Some((chunk_idx, str_idx));
-                break;
-            }
+        if let Chunk::Normal(s) = &val.v
+            && let Some(str_idx) = s.find(c)
+        {
+            search_result = Some((chunk_idx, str_idx));
+            break;
         }
     }
 

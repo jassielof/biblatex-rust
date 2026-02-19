@@ -637,10 +637,8 @@ mod tests {
     use super::*;
 
     fn format(field: &Field<'_>) -> String {
-        if field.len() == 1 {
-            if let Some(RawChunk::Normal(s)) = field.first().map(|s| &s.v) {
+        if field.len() == 1 && let Some(RawChunk::Normal(s)) = field.first().map(|s| &s.v) {
                 return format!("{{{}}}", s);
-            }
         }
 
         let mut res = String::new();

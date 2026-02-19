@@ -417,10 +417,10 @@ impl Entry {
         malformed.extend(self.detect_date_malformed());
 
         let reqs = self.entry_type.requirements();
-        if reqs.needs_date {
-            if let Err(RetrievalError::Missing(_)) = self.date() {
-                missing.push("year");
-            }
+        if reqs.needs_date
+            && let Err(RetrievalError::Missing(_)) = self.date()
+        {
+            missing.push("year");
         }
 
         Report { missing, superfluous, malformed }
@@ -831,10 +831,8 @@ impl Entry {
                 || self.get("month").is_some()
                 || self.get("day").is_some();
 
-            if !has_date_fields {
-                if let Some(date) = convert_result(crossref.date())? {
-                    self.set_date(date);
-                }
+            if !has_date_fields && let Some(date) = convert_result(crossref.date())? {
+                self.set_date(date);
             }
         }
 

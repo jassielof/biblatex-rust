@@ -24,10 +24,10 @@ fn test_non_standard_types_parse() {
         let _ = entry.author();
 
         // Verify date is parseable if present
-        if let Ok(PermissiveType::Typed(d)) = entry.date() {
-            if let DateValue::At(dt) = d.value {
-                assert!(dt.year > 0, "Entry '{}' should have a valid year", entry.key);
-            }
+        if let Ok(PermissiveType::Typed(d)) = entry.date()
+            && let DateValue::At(dt) = d.value
+        {
+            assert!(dt.year > 0, "Entry '{}' should have a valid year", entry.key);
         }
     }
 }

@@ -1,5 +1,4 @@
-//! Defines the different bibliographical items and which fields should be
-//! attached to each of them.
+//! Defines the different bibliographical items and which fields should be attached to each of them.
 
 use std::str::FromStr;
 

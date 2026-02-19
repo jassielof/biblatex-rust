@@ -632,7 +632,6 @@ pub fn is_id_continue(c: char) -> bool {
 }
 
 #[cfg(test)]
-#[rustfmt::skip]
 mod tests {
     use super::*;
 

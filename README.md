@@ -1,12 +1,12 @@
-# BibLaTeX
+# Bib(La)TeX
 
-A Rust crate for parsing and writing BibTeX and BibLaTeX files.
+A Rust library for parsing and serializing Bib(La)TeX.
 
 BibLaTeX can help you to parse `.bib` bibliography files. As opposed to other available crates, this crate attempts to parse the data within the fields into easily usable structs and enums like `Person` and `Date` for downstream consumption.
 
 ## Usage
 
-You can add this library as a dependecy as `biblatex`.
+You can add this library as a dependecy as `biblatex`. For example:
 
 ```rust
 use biblatex::Bibliography;
@@ -20,7 +20,7 @@ assert_eq!(author[0].name, "Tolkien");
 
 This library operates on a `Bibliography` struct, which is a collection of _entries_ (the items in your `.bib` file that start with an `@` and are wrapped in curly braces). The entries may hold multiple fields. Entries have getter methods for each of the possible fields in a Bib(La)TeX file which handle possible field aliases, composition and type conversion automatically.
 
-### External Abbreviations
+### External abbreviations
 
 Many BibLaTeX styles define `@string` abbreviations in separate style files (`.bst`). To use these external abbreviations, you can provide them when parsing:
 

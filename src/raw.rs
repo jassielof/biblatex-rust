@@ -636,8 +636,10 @@ mod tests {
     use super::*;
 
     fn format(field: &Field<'_>) -> String {
-        if field.len() == 1 && let Some(RawChunk::Normal(s)) = field.first().map(|s| &s.v) {
-                return format!("{{{}}}", s);
+        if field.len() == 1
+            && let Some(RawChunk::Normal(s)) = field.first().map(|s| &s.v)
+        {
+            return format!("{{{}}}", s);
         }
 
         let mut res = String::new();
@@ -655,7 +657,7 @@ mod tests {
                     res.push('"');
                     res.push_str(s);
                     res.push('"');
-                },
+                }
                 RawChunk::Abbreviation(s) => res.push_str(s),
             }
         }
@@ -704,14 +706,20 @@ mod tests {
         assert_eq!(article.v.fields[2].key.v, "author");
         assert_eq!(format(&article.v.fields[0].value.v), "{Great proceedings\\{}");
         assert_eq!(format(&article.v.fields[1].value.v), "{2002}");
-        assert_eq!(format(&article.v.fields[2].value.v), "{Haug, {Martin} and Haug, Gregor}");
+        assert_eq!(
+            format(&article.v.fields[2].value.v),
+            "{Haug, {Martin} and Haug, Gregor}"
+        );
     }
 
     #[test]
     fn test_resolve_string() {
         let bt = RawBibliography::parse("@string{BT = \"bibtex\"}").unwrap();
         assert_eq!(bt.abbreviations[0].key.v, "BT");
-        assert_eq!(&bt.abbreviations[0].value.v, &vec![Spanned::new(RawChunk::Normal("bibtex"), 14..20)]);
+        assert_eq!(
+            &bt.abbreviations[0].value.v,
+            &vec![Spanned::new(RawChunk::Normal("bibtex"), 14..20)]
+        );
     }
 
     #[test]

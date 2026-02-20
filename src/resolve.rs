@@ -487,7 +487,7 @@ fn flatten(chunks: &mut Chunks) {
 /// exporting verbatim fields. This crate doesn't escape colons when exporting.
 ///
 /// List of reserved characters here
-/// http://latexref.xyz/Reserved-characters.html
+/// <http://latexref.xyz/Reserved-characters.html>
 pub fn is_escapable(c: char, verb: bool, read_char: bool) -> bool {
     match c {
         '{' | '}' | '\\' => true,

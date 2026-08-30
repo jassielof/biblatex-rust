@@ -211,6 +211,37 @@ fn test_biblatex_serialization_is_idempotent() {
 }
 
 #[test]
+/// `\~` and `\^` are accent commands rather than escapes, so a literal tie or
+/// circumflex has to be written back as-is. Escaping it produced an accent
+/// that silently corrupted the value on the next round trip.
+///
+/// Ref.: https://github.com/typst/biblatex/issues/76.
+fn test_tie_is_not_escaped_into_an_accent() {
+    let contents = r#"@article{key, journaltitle = {J.~Amer. Math. Soc.}}"#;
+
+    let bibliography = Bibliography::parse(contents).unwrap();
+    let entry = bibliography.get("key").unwrap();
+    let serialized = entry.to_biblatex_string();
+
+    assert_eq!(serialized, "@article{key,\njournaltitle = {J.~Amer. Math. Soc.},\n}");
+
+    let reparsed = Bibliography::parse(&serialized).unwrap();
+    assert_eq!(
+        reparsed
+            .get("key")
+            .unwrap()
+            .journal_title()
+            .unwrap()
+            .format_verbatim(),
+        "J.~Amer. Math. Soc."
+    );
+
+    // The accent commands themselves keep working.
+    let accents = Bibliography::parse(r#"@article{k, title = {\~n and \^e}}"#).unwrap();
+    assert_eq!(accents.get("k").unwrap().title().unwrap().format_verbatim(), "ñ and ê");
+}
+
+#[test]
 /// A command name is not text, so sentence casing must leave it alone.
 ///
 /// Ref.: https://github.com/typst/biblatex/issues/76.

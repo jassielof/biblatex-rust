@@ -193,6 +193,8 @@ impl<'s> ContentParser<'s> {
     fn backslash(&mut self) -> Result<Resolved, ParseError> {
         self.eat_assert('\\');
         match self.s.peek() {
+            // `\~` and `\^` are accent commands rather than escapes, so they
+            // must fall through to `command` below.
             Some(c) if c != '^' && c != '~' && is_escapable(c, self.verb_field, true) => {
                 self.s.eat();
                 Ok(Resolved::Text(c.to_string()))
@@ -515,12 +517,17 @@ fn flatten(chunks: &mut Chunks) {
 /// string to keep compatibility with Zotero. Zotero escapes colons when
 /// exporting verbatim fields. This crate doesn't escape colons when exporting.
 ///
+/// Note that `~` and `^` are reserved but deliberately absent: a backslash
+/// does not escape them, it starts the tie accent (`\~`) and the circumflex
+/// accent (`\^`). Escaping them when writing would change what they mean and
+/// would be read back as an accent, so they are emitted as they are.
+///
 /// List of reserved characters here
 /// http://latexref.xyz/Reserved-characters.html
 pub fn is_escapable(c: char, verb: bool, read_char: bool) -> bool {
     match c {
         '{' | '}' | '\\' => true,
-        '~' | '^' | '#' | '&' | '%' | '$' | '_' if !verb => true,
+        '#' | '&' | '%' | '$' | '_' if !verb => true,
         ':' if read_char => true,
         _ => false,
     }

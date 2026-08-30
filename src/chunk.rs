@@ -28,6 +28,16 @@ pub enum Chunk {
     Verbatim(String),
     /// Values nested in dollar signs.
     Math(String),
+    /// TeX source that the parser could not resolve into text, stored exactly
+    /// as it appeared in the file and written back out unescaped.
+    ///
+    /// This keeps commands that have no textual equivalent from being mangled
+    /// on a parse-then-serialize round trip. It covers unknown commands as
+    /// well as ones whose meaning is purely typographic, such as the control
+    /// space `\ `.
+    ///
+    /// Example: `\ ` or `\mathrm{dg}`.
+    Raw(String),
 }
 
 impl Chunk {
@@ -37,6 +47,7 @@ impl Chunk {
             Chunk::Normal(s) => s,
             Chunk::Verbatim(s) => s,
             Chunk::Math(s) => s,
+            Chunk::Raw(s) => s,
         }
     }
 
@@ -46,6 +57,7 @@ impl Chunk {
             Chunk::Normal(s) => (s, false),
             Chunk::Verbatim(s) => (s, true),
             Chunk::Math(s) => (s, false),
+            Chunk::Raw(s) => (s, false),
         }
     }
 
@@ -55,6 +67,7 @@ impl Chunk {
             Chunk::Normal(s) => s,
             Chunk::Verbatim(s) => s,
             Chunk::Math(s) => s,
+            Chunk::Raw(s) => s,
         }
     }
 
@@ -65,8 +78,10 @@ impl Chunk {
     /// The `is_verbatim` argument indicates whether this string is intended for
     /// a verbatim field like `file` with limited escapes.
     pub fn to_biblatex_string(&self, is_verbatim: bool) -> String {
+        // Math and raw TeX are reproduced as they were written, since escaping
+        // them would change what they mean.
         // Ref.: https://github.com/typst/biblatex/issues/76.
-        if let Chunk::Math(s) = self {
+        if let Chunk::Math(s) | Chunk::Raw(s) = self {
             return s.clone();
         }
 
@@ -142,6 +157,12 @@ impl ChunksExt for [Spanned<Chunk>] {
                     out += s;
                     out.push('$');
                 }
+                // Never case-fold a command name; `\Foo` is not `\foo`.
+                Chunk::Raw(s) => {
+                    out.push_str(s);
+                    prev_was_whitespace =
+                        s.chars().last().map(char::is_whitespace).unwrap_or(false);
+                }
             }
 
             first = false;
@@ -179,6 +200,11 @@ impl ChunksExt for [Spanned<Chunk>] {
                     out.push('$');
                     out += s;
                     out.push('$');
+                }
+                Chunk::Raw(s) => {
+                    out += s;
+                    prev_was_whitespace =
+                        s.chars().last().map(char::is_whitespace).unwrap_or(false);
                 }
             }
         }
@@ -478,6 +504,9 @@ pub(crate) fn split_values(
         }
         Chunk::Math(_) => {
             new.insert(0, Spanned::new(Chunk::Math(s2), new_span));
+        }
+        Chunk::Raw(_) => {
+            new.insert(0, Spanned::new(Chunk::Raw(s2), new_span));
         }
     }
 

@@ -36,6 +36,16 @@ pub fn parse_field(
     Ok(chunks)
 }
 
+/// The outcome of resolving a backslash escape sequence.
+enum Resolved {
+    /// The sequence resolved to literal text, which joins the surrounding
+    /// chunk and is escaped again when serialized.
+    Text(String),
+    /// The sequence could not be resolved into text and is kept as TeX source,
+    /// to be written back out unescaped as a [`Chunk::Raw`].
+    Raw(String),
+}
+
 #[derive(Clone)]
 struct ContentParser<'s> {
     s: Scanner<'s>,
@@ -84,8 +94,27 @@ impl<'s> ContentParser<'s> {
         while let Some(c) = self.s.peek() {
             match c {
                 '\\' => {
-                    let sequence = self.backslash()?;
-                    self.current_chunk.get_mut().push_str(&sequence)
+                    let start = self.s.cursor();
+                    match self.backslash()? {
+                        Resolved::Text(text) => {
+                            self.current_chunk.get_mut().push_str(&text)
+                        }
+                        Resolved::Raw(tex) => {
+                            // End the preceding chunk where the command began,
+                            // so its span does not swallow the command. Skip
+                            // it when there is no preceding text, rather than
+                            // emitting an empty chunk.
+                            if !self.current_chunk.get().is_empty() {
+                                self.turnaround_at(depth, start);
+                            }
+                            self.result.push(Spanned::new(
+                                Chunk::Raw(tex),
+                                start..self.s.cursor(),
+                            ));
+                            self.current_chunk = Self::default_chunk(depth);
+                            self.start = self.s.cursor();
+                        }
+                    }
                 }
                 '$' if !self.verb_field => {
                     self.turnaround(depth);
@@ -147,28 +176,40 @@ impl<'s> ContentParser<'s> {
     }
 
     fn turnaround(&mut self, depth: usize) {
-        self.result.push(Spanned::new(
-            std::mem::replace(&mut self.current_chunk, Self::default_chunk(depth)),
-            self.start..self.s.cursor(),
-        ));
-        self.start = self.s.cursor();
+        let end = self.s.cursor();
+        self.turnaround_at(depth, end);
     }
 
-    fn backslash(&mut self) -> Result<String, ParseError> {
+    /// Like [`Self::turnaround`], but ends the current chunk at `end` rather
+    /// than at the scanner's position.
+    fn turnaround_at(&mut self, depth: usize, end: usize) {
+        self.result.push(Spanned::new(
+            std::mem::replace(&mut self.current_chunk, Self::default_chunk(depth)),
+            self.start..end,
+        ));
+        self.start = end;
+    }
+
+    fn backslash(&mut self) -> Result<Resolved, ParseError> {
         self.eat_assert('\\');
         match self.s.peek() {
             Some(c) if c != '^' && c != '~' && is_escapable(c, self.verb_field, true) => {
                 self.s.eat();
-                Ok(c.to_string())
+                Ok(Resolved::Text(c.to_string()))
             }
-            _ if self.verb_field => Ok("\\".to_string()),
+            _ if self.verb_field => Ok(Resolved::Text("\\".to_string())),
             Some(c) if !c.is_whitespace() && !c.is_control() => self.command(),
-            Some(c) => Ok(format!("\\{}", c)),
+            // A control space (`\ `) and friends: no textual equivalent, so
+            // keep the source to write back out later.
+            Some(c) => {
+                self.s.eat();
+                Ok(Resolved::Raw(format!("\\{}", c)))
+            }
             None => Err(ParseError::new(self.here(), ParseErrorKind::UnexpectedEof)),
         }
     }
 
-    fn command(&mut self) -> Result<String, ParseError> {
+    fn command(&mut self) -> Result<Resolved, ParseError> {
         let pos = self.s.cursor();
         let valid_start = self
             .s
@@ -296,9 +337,11 @@ fn resolve_abbreviation(
 }
 
 /// Best-effort evaluation of LaTeX commands with a focus on diacritics.
-/// Will dump the command arguments if evaluation is not possible.
+///
+/// Commands that have no textual equivalent are returned as [`Resolved::Raw`]
+/// so that serializing them again yields the original source.
 /// Nested commands are not supported.
-fn execute_command(command: &str, arg: Option<&str>) -> String {
+fn execute_command(command: &str, arg: Option<&str>) -> Resolved {
     fn last_char_combine(v: Option<&str>, combine: char) -> String {
         if let Some(v) = v {
             if v.is_empty() {
@@ -332,7 +375,7 @@ fn execute_command(command: &str, arg: Option<&str>) -> String {
         }
     }
 
-    match command {
+    let text = match command {
         "LaTeX" => "LaTeX".to_string(),
         "TeX" => "TeX".to_string(),
         "textendash" => "–".to_string(),
@@ -425,13 +468,15 @@ fn execute_command(command: &str, arg: Option<&str>) -> String {
         "o" => last_char_combine(arg, '\u{338}'),
         "-" => String::new(),
         _ => {
-            if let Some(arg) = arg {
+            return Resolved::Raw(if let Some(arg) = arg {
                 format!("\\{}{{{}}}", command, arg)
             } else {
                 format!("\\{} ", command)
-            }
+            });
         }
-    }
+    };
+
+    Resolved::Text(text)
 }
 
 /// Simplifies a chunk vector by collapsing neighboring Normal or Verbatim chunks.
@@ -447,6 +492,7 @@ fn flatten(chunks: &mut Chunks) {
             (&chunks[i - 1].v, &chunks[i].v),
             (Chunk::Normal(_), Chunk::Normal(_))
                 | (Chunk::Verbatim(_), Chunk::Verbatim(_))
+                | (Chunk::Raw(_), Chunk::Raw(_))
         );
 
         if merge {
@@ -505,6 +551,9 @@ mod tests {
     fn M(s: &str) -> Chunk {
         Chunk::Math(s.to_string())
     }
+    fn R(s: &str) -> Chunk {
+        Chunk::Raw(s.to_string())
+    }
 
     fn z(c: RawChunk) -> Spanned<RawChunk> {
         Spanned::new(c, 0..0)
@@ -552,8 +601,11 @@ mod tests {
         assert_eq!(res[0].v, N("Äther und "));
         assert_eq!(res[1].v, V("\"LaTeX\""));
         assert_eq!(res[2].v, N(" "));
-        assert_eq!(res[3].v, V("\\relax for you}"));
-        assert_eq!(res.len(), 4);
+        // `\relax` has no textual equivalent, so it is split out and kept as
+        // TeX source rather than folded into the verbatim text.
+        assert_eq!(res[3].v, R("\\relax "));
+        assert_eq!(res[4].v, V("for you}"));
+        assert_eq!(res.len(), 5);
 
         let field = vec![z(RawChunk::Normal("M\\\"etal S\\= ound"))];
 
@@ -569,6 +621,57 @@ mod tests {
 
         let res = parse_field("", &field, &HashMap::new()).unwrap();
         assert_eq!(res[0].v, N("b̲ ç ạ ő ą å ă ǎ"));
+    }
+
+    /// Commands with no textual equivalent are kept as [`Chunk::Raw`] so that
+    /// serializing them again reproduces the original source.
+    ///
+    /// Ref.: https://github.com/typst/biblatex/issues/76.
+    #[test]
+    fn test_raw_commands() {
+        // An unknown command without an argument.
+        let field = vec![z(RawChunk::Normal(r"X \relax Y"))];
+        let res = parse_field("", &field, &HashMap::new()).unwrap();
+        assert_eq!(res.len(), 3);
+        assert_eq!(res[0].v, N("X "));
+        assert_eq!(res[1].v, R("\\relax "));
+        assert_eq!(res[2].v, N("Y"));
+
+        // An unknown command with an argument.
+        let field = vec![z(RawChunk::Normal(r"X \mathrm{dg} Y"))];
+        let res = parse_field("", &field, &HashMap::new()).unwrap();
+        assert_eq!(res.len(), 3);
+        assert_eq!(res[1].v, R("\\mathrm{dg}"));
+
+        // The control space is a command too, and is equally unrepresentable
+        // as text.
+        let field = vec![z(RawChunk::Normal(r"Dept.\ of CS"))];
+        let res = parse_field("", &field, &HashMap::new()).unwrap();
+        assert_eq!(res.len(), 3);
+        assert_eq!(res[0].v, N("Dept."));
+        assert_eq!(res[1].v, R("\\ "));
+        assert_eq!(res[2].v, N("of CS"));
+
+        // Neighboring raw chunks merge, and a leading command does not leave
+        // an empty chunk in front of it.
+        let field = vec![z(RawChunk::Normal(r"\foo \bar baz"))];
+        let res = parse_field("", &field, &HashMap::new()).unwrap();
+        assert_eq!(res.len(), 2);
+        assert_eq!(res[0].v, R("\\foo \\bar "));
+        assert_eq!(res[1].v, N("baz"));
+
+        // Known commands still resolve to text.
+        let field = vec![z(RawChunk::Normal(r#"K\"ahler"#))];
+        let res = parse_field("", &field, &HashMap::new()).unwrap();
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0].v, N("Kähler"));
+
+        // Verbatim fields treat a backslash as literal text, so they never
+        // produce raw chunks.
+        let field = vec![z(RawChunk::Normal(r"C:\Users\x"))];
+        let res = parse_field("file", &field, &HashMap::new()).unwrap();
+        assert_eq!(res.len(), 1);
+        assert_eq!(res[0].v, N(r"C:\Users\x"));
     }
 
     #[test]

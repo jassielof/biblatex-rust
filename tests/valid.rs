@@ -95,7 +95,6 @@ fn test_bibtex_conversion() {
 }
 
 #[test]
-#[ignore = "control-space commands (e.g. `\\ `) are re-escaped on serialization"]
 /// Ref.: https://github.com/typst/biblatex/issues/76.
 fn test_biblatex_serialization_preserves_tex_input() {
     let contents = r#"
@@ -152,7 +151,6 @@ fn test_biblatex_serialization_accent_decoded_to_unicode() {
 }
 
 #[test]
-#[ignore = "control-space commands (e.g. `\\ `) are re-escaped on serialization"]
 /// Ref.: https://github.com/typst/biblatex/issues/76.
 fn test_biblatex_serialization_control_space_preserved() {
     let contents = r#"
@@ -168,6 +166,93 @@ fn test_biblatex_serialization_control_space_preserved() {
         entry.to_biblatex_string(),
         "@article{key,\ninstitution = {Dept.\\ of Computer Science, Stanford Univ.},\n}"
     );
+}
+
+#[test]
+/// Ref.: https://github.com/typst/biblatex/issues/76.
+fn test_biblatex_serialization_unknown_command_preserved() {
+    let contents = r#"
+        @article{key,
+          title = {A \relax B \mathrm{dg} C},
+        }
+    "#;
+
+    let bibliography = Bibliography::parse(contents).unwrap();
+    let entry = bibliography.get("key").unwrap();
+
+    let expected = "@article{key,\ntitle = {A \\relax B \\mathrm{dg} C},\n}";
+    assert_eq!(entry.to_biblatex_string(), expected);
+    // BibTeX serialization escapes through the same path.
+    assert_eq!(entry.to_bibtex_string().unwrap(), expected);
+}
+
+#[test]
+/// Serializing a parsed bibliography and parsing it again must be a no-op,
+/// otherwise repeated edit cycles keep corrupting the file.
+///
+/// Ref.: https://github.com/typst/biblatex/issues/76.
+fn test_biblatex_serialization_is_idempotent() {
+    let contents = r#"
+        @article{key,
+          author = {Kurt G\"odel},
+          institution = {Dept.\ of Computer Science, Stanford Univ.},
+          title = {Limits of $\mathrm{dg}$-categories, \relax and {NASA} facts},
+        }
+    "#;
+
+    let first = Bibliography::parse(contents).unwrap().to_biblatex_string();
+    let second = Bibliography::parse(&first).unwrap().to_biblatex_string();
+
+    assert_eq!(first, second);
+    // The commands survived rather than being escaped away.
+    assert!(first.contains("Dept.\\ of Computer Science"));
+    assert!(first.contains("$\\mathrm{dg}$"));
+    assert!(first.contains("\\relax "));
+}
+
+#[test]
+/// `\~` and `\^` are accent commands rather than escapes, so a literal tie or
+/// circumflex has to be written back as-is. Escaping it produced an accent
+/// that silently corrupted the value on the next round trip.
+///
+/// Ref.: https://github.com/typst/biblatex/issues/76.
+fn test_tie_is_not_escaped_into_an_accent() {
+    let contents = r#"@article{key, journaltitle = {J.~Amer. Math. Soc.}}"#;
+
+    let bibliography = Bibliography::parse(contents).unwrap();
+    let entry = bibliography.get("key").unwrap();
+    let serialized = entry.to_biblatex_string();
+
+    assert_eq!(serialized, "@article{key,\njournaltitle = {J.~Amer. Math. Soc.},\n}");
+
+    let reparsed = Bibliography::parse(&serialized).unwrap();
+    assert_eq!(
+        reparsed
+            .get("key")
+            .unwrap()
+            .journal_title()
+            .unwrap()
+            .format_verbatim(),
+        "J.~Amer. Math. Soc."
+    );
+
+    // The accent commands themselves keep working.
+    let accents = Bibliography::parse(r#"@article{k, title = {\~n and \^e}}"#).unwrap();
+    assert_eq!(accents.get("k").unwrap().title().unwrap().format_verbatim(), "ñ and ê");
+}
+
+#[test]
+/// A command name is not text, so sentence casing must leave it alone.
+///
+/// Ref.: https://github.com/typst/biblatex/issues/76.
+fn test_raw_command_not_case_folded() {
+    let contents = r#"@article{key, title = {AN \TeXlike EXAMPLE}}"#;
+
+    let bibliography = Bibliography::parse(contents).unwrap();
+    let title = bibliography.get("key").unwrap().title().unwrap();
+
+    assert_eq!(title.format_verbatim(), "AN \\TeXlike EXAMPLE");
+    assert_eq!(title.format_sentence(), "An \\TeXlike example");
 }
 
 #[test]
